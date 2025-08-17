@@ -17,7 +17,7 @@ A tool that crawls documentation websites and generates LLM-friendly summaries i
 
 ```bash
 # Clone the repository
-git clone <repo-url>
+git clone https://github.com/sshtomar/llm-txt.git
 cd llm-txt
 
 # Install dependencies
