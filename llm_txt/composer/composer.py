@@ -2,8 +2,10 @@
 
 import os
 import logging
-from typing import List, Optional
-from anthropic import Anthropic
+import re
+import hashlib
+from typing import List, Optional, Set
+import cohere
 from dotenv import load_dotenv
 from ..crawler.models import PageContent
 
@@ -14,17 +16,17 @@ logger = logging.getLogger(__name__)
 
 
 class LLMTxtComposer:
-    """Composes llm.txt content from crawled pages using Anthropic Claude."""
+    """Composes llm.txt content from crawled pages using Cohere."""
     
     def __init__(self, api_key: Optional[str] = None, max_kb: int = 500) -> None:
-        self.api_key = api_key or os.getenv("ANTHROPIC_API_KEY")
+        self.api_key = api_key or os.getenv("COHERE_API_KEY")
         self.max_kb = max_kb
         self.client = None
         
         if self.api_key:
-            self.client = Anthropic(api_key=self.api_key)
+            self.client = cohere.ClientV2(api_key=self.api_key)
         else:
-            logger.warning("No Anthropic API key provided. Composer will use basic text processing.")
+            logger.warning("No Cohere API key provided. Composer will use basic text processing.")
     
     async def compose_llm_txt(self, pages: List[PageContent]) -> str:
         """Compose a concise llm.txt from crawled pages."""
@@ -63,10 +65,15 @@ class LLMTxtComposer:
         # Join all content
         full_content = "\n\n".join(content_parts)
         
-        # Use Anthropic to summarize if available and content is too large
+        # Post-process the content
+        full_content = self._post_process_content(full_content)
+        
+        # Use Cohere to summarize if available and content is too large
         if self.client and len(full_content.encode('utf-8')) > max_size_bytes:
             logger.info("Content exceeds size limit, using AI to summarize")
-            return await self._ai_summarize(full_content, target_kb=self.max_kb)
+            summarized = await self._ai_summarize(full_content, target_kb=self.max_kb)
+            # Post-process the AI output too
+            return self._post_process_content(summarized)
         
         return full_content
     
@@ -92,58 +99,94 @@ class LLMTxtComposer:
         return "\n\n".join(content_parts)
     
     def _prioritize_pages(self, pages: List[PageContent]) -> List[PageContent]:
-        """Sort pages by importance for inclusion."""
+        """Sort pages by importance for inclusion - HuggingFace style."""
         def page_score(page: PageContent) -> float:
             score = 0.0
             
-            # Prefer pages at lower depth (closer to root)
-            score += max(0, 10 - page.depth)
-            
-            # Prefer pages with more content
-            content_length = len(page.content)
-            score += min(content_length / 1000, 5)  # Cap at 5 points
-            
-            # Boost pages with documentation-related keywords in title/URL
-            doc_keywords = ['doc', 'guide', 'tutorial', 'api', 'reference', 'getting-started', 'quickstart']
-            title_lower = page.title.lower()
+            title_lower = page.title.lower() if page.title else ""
             url_lower = page.url.lower()
+            content_lower = page.content[:1000].lower()  # Check first 1000 chars
             
-            for keyword in doc_keywords:
+            # HIGHEST PRIORITY: Installation and setup (like HF)
+            install_keywords = ['install', 'installation', 'setup', 'getting-started', 
+                              'quickstart', 'quick-start', 'requirements', 'dependencies']
+            for keyword in install_keywords:
                 if keyword in title_lower or keyword in url_lower:
-                    score += 2
+                    score += 25  # Highest boost
+                elif keyword in content_lower:
+                    score += 15
             
-            # Penalize changelog, news, blog type content
-            low_value_keywords = ['changelog', 'news', 'blog', 'archive', 'release-notes']
-            for keyword in low_value_keywords:
+            # HIGH PRIORITY: Core API and usage
+            api_keywords = ['api', 'reference', 'methods', 'functions', 'classes',
+                           'endpoints', 'parameters', 'arguments', 'options']
+            for keyword in api_keywords:
                 if keyword in title_lower or keyword in url_lower:
-                    score -= 5
+                    score += 20
+            
+            # HIGH PRIORITY: Examples and tutorials
+            example_keywords = ['example', 'tutorial', 'guide', 'how-to', 'usage',
+                              'sample', 'demo', 'cookbook', 'recipe']
+            for keyword in example_keywords:
+                if keyword in title_lower or keyword in url_lower:
+                    score += 18
+            
+            # MEDIUM PRIORITY: Configuration and advanced topics
+            config_keywords = ['configuration', 'config', 'settings', 'options',
+                             'customize', 'advanced', 'optimization']
+            for keyword in config_keywords:
+                if keyword in title_lower or keyword in url_lower:
+                    score += 10
+            
+            # BOOST: Code-heavy pages
+            code_indicators = ['```', '<code>', 'import ', 'from ', 'def ', 'class ']
+            code_count = sum(1 for indicator in code_indicators if indicator in page.content)
+            score += min(code_count * 2, 10)  # Cap at 10 points
+            
+            # PENALTY: Non-technical content
+            noise_keywords = [
+                'changelog', 'release', 'announcement', 'blog', 'news',
+                'about', 'careers', 'team', 'company', 'press',
+                'terms', 'privacy', 'cookie', 'legal', 'disclaimer',
+                'pricing', 'plans', 'enterprise', 'contact', 'support'
+            ]
+            for keyword in noise_keywords:
+                if keyword in title_lower or keyword in url_lower:
+                    score -= 30  # Heavy penalty
+            
+            # PENALTY: Date patterns (changelogs/blogs)
+            if re.search(r'\d{4}[-/]\d{2}[-/]\d{2}|changelog|release-notes', url_lower):
+                score -= 25
+            
+            # Depth scoring: prefer shallow pages for main concepts
+            if page.depth <= 2:
+                score += 5
+            elif page.depth > 4:
+                score -= 5
+            
+            # Content length scoring
+            content_length = len(page.content)
+            if 1000 < content_length < 30000:  # Optimal range
+                score += 5
+            elif content_length > 100000:  # Too long, probably aggregated
+                score -= 10
             
             return score
         
-        return sorted(pages, key=page_score, reverse=True)
+        # Deduplicate pages before sorting
+        unique_pages = self._deduplicate_pages(pages)
+        return sorted(unique_pages, key=page_score, reverse=True)
     
     def _generate_header(self, pages: List[PageContent], is_full_version: bool = False) -> str:
-        """Generate header for the llm.txt file."""
+        """Generate minimal header for the llm.txt file."""
         if not pages:
-            return "# Documentation Summary\n\nNo content available."
+            return ""
         
-        # Get site info from first page
-        first_page = pages[0]
-        site_title = first_page.title or "Documentation"
-        
-        version_note = " (Full Version)" if is_full_version else ""
-        
-        header = f"""# {site_title}{version_note}
-
-This is an AI-generated summary of the documentation.
-
-**Source**: {first_page.url}
-**Generated**: {len(pages)} pages crawled
-**Total Size**: {sum(len(p.content.encode('utf-8')) for p in pages) / 1024:.1f}KB
-
----
-"""
-        return header
+        # For AI-summarized version, let the AI generate the header
+        # For full version, add a simple comment
+        if is_full_version:
+            return f"# Documentation\n\n"
+        else:
+            return ""  # Let AI generate appropriate title
     
     def _format_page_content(self, page: PageContent, is_full_version: bool = False) -> str:
         """Format a single page's content."""
@@ -167,24 +210,71 @@ This is an AI-generated summary of the documentation.
         return content
     
     def _clean_content(self, content: str) -> str:
-        """Clean and normalize content."""
-        # Remove excessive whitespace
+        """Clean and normalize content - enhanced version."""
+        # Step 1: Remove HTML tags and custom tags
+        html_patterns = [
+            r'<[^>]+>',  # HTML tags
+            r'<Tip[^>]*>.*?</Tip>',  # Custom tip tags
+            r'\{\{[^}]+\}\}',  # Template variables
+        ]
+        for pattern in html_patterns:
+            content = re.sub(pattern, '', content, flags=re.DOTALL)
+        
+        # Step 2: Clean code blocks
+        # Fix malformed code blocks with line numbers
+        def clean_code_block(match):
+            code = match.group(1)
+            # Remove line numbers in various formats
+            code = re.sub(r'^\d+\|\s*', '', code, flags=re.MULTILINE)
+            code = re.sub(r'^\s*---\|---.*$', '', code, flags=re.MULTILINE)
+            code = re.sub(r'^\s*\|\s*', '', code, flags=re.MULTILINE)
+            return f'```\n{code.strip()}\n```'
+        
+        content = re.sub(r'```[\w]*\n([^`]+)```', clean_code_block, content, flags=re.DOTALL)
+        
+        # Step 3: Remove navigation and UI elements
+        noise_patterns = [
+            r'GET\s+STARTED.*?(?=\n|$)',
+            r'Built\s+with.*?(?=\n|$)',
+            r'\[.*?GET\s+STARTED.*?\]\(.*?\)',
+            r'\[Built\s+with\].*?(?=\n|$)',
+            r'\[.*?\]\(#[^)]*\)',  # Internal anchor links
+            r'^\s*\[/.*?\].*$',  # Navigation paths
+            r'^\s*\|\s*$',  # Empty table rows
+            r'Read\s+more.*?(?=\n|$)',
+            r'Learn\s+more.*?(?=\n|$)',
+            r'Click\s+here.*?(?=\n|$)',
+            r'^\s*→.*$',  # Arrow navigation
+            r'^\s*[▶▼►◄].*$',  # UI symbols
+        ]
+        
+        for pattern in noise_patterns:
+            content = re.sub(pattern, '', content, flags=re.MULTILINE | re.IGNORECASE)
+        
+        # Step 4: Clean up whitespace and formatting
         lines = content.split('\n')
         cleaned_lines = []
+        prev_empty = False
         
         for line in lines:
-            line = line.strip()
-            if line:
+            line = line.rstrip()  # Keep left indentation for code
+            
+            # Skip multiple consecutive empty lines
+            if not line:
+                if not prev_empty:
+                    cleaned_lines.append('')
+                    prev_empty = True
+            else:
                 cleaned_lines.append(line)
+                prev_empty = False
         
-        # Join lines and normalize spacing
-        cleaned = '\n\n'.join(cleaned_lines)
+        content = '\n'.join(cleaned_lines)
         
-        # Remove multiple consecutive newlines
-        while '\n\n\n' in cleaned:
-            cleaned = cleaned.replace('\n\n\n', '\n\n')
+        # Step 5: Fix markdown formatting issues
+        content = re.sub(r'\n{3,}', '\n\n', content)  # Max 2 newlines
+        content = re.sub(r'^#{7,}', '######', content, flags=re.MULTILINE)  # Max 6 header levels
         
-        return cleaned.strip()
+        return content.strip()
     
     def _truncate_content(self, content: str, max_bytes: int) -> str:
         """Truncate content to fit within byte limit."""
@@ -209,74 +299,178 @@ This is an AI-generated summary of the documentation.
         return truncated
     
     async def _ai_summarize(self, content: str, target_kb: int) -> str:
-        """Use Anthropic Claude to summarize content to target size."""
+        """Use Cohere to summarize content to target size."""
         if not self.client:
             # Fallback to simple truncation
             max_bytes = target_kb * 1024
             return self._truncate_content(content, max_bytes)
         
         try:
-            prompt = f"""
-You are a senior technical writer. Condense the provided documentation into a
-concise, accurate **Markdown** summary suitable for inclusion in `llm.txt`.
+            system_prompt = f"""<role>
+You are a senior technical documentation specialist with expertise in creating LLM-optimized reference materials. You excel at analyzing complex documentation and synthesizing it into clean, structured formats.
+</role>
 
-### OUTPUT RULES
-- **Length target:** ~{target_kb} KB when saved as UTF-8. Be terse; prefer bullets.
-- **Format:** Output *only* Markdown (no preamble/epilogue). Use this structure:
+<task>
+Transform the provided documentation into a comprehensive technical reference optimized for LLMs and developers.
+</task>
 
-# <Inferred Title of the Doc/Page>
-> 1–2 sentence overview stating purpose and when to use it.
+<requirements>
+1. Extract installation instructions, setup procedures, and dependencies
+2. Identify core APIs, methods, and configuration options
+3. Preserve clean, runnable code examples without artifacts
+4. Organize content by practical importance (setup → basic usage → advanced)
+5. Remove all non-technical content (marketing, changelogs, navigation)
+6. Maintain technical accuracy while improving clarity
+7. Target approximately {target_kb} KB of content
+</requirements>
 
-## Key Tasks / Quickstart
-- Steps to install/set up/use (max 5 bullets).
-- Required tools/versions/auth.
+<output_format>
+# [Project/Library Name]
 
-## Core API / Commands (if present)
-- Main endpoints/commands with the one-line purpose and essential params.
-- Keep code to **one short example** (≤10 lines) enclosed in triple backticks.
+## Installation
 
-## Configuration / Options
-- Critical flags, env vars, config keys (name → 1-line meaning; defaults if crucial).
+### Prerequisites
+- Required dependencies and system requirements
+- Version compatibility information
 
-## Constraints & Gotchas
-- Limits, common errors, performance/security notes, compatibility/version caveats.
+### Install with pip
+```bash
+pip install [package-name]
+```
 
-## Links or Section Names (if relevant)
-- Important sections/topics to seek (no marketing/history).
+### Install from source
+```bash
+git clone [repository]
+cd [directory]
+pip install -e .
+```
 
-### PRIORITIZE
-- Getting started; authentication; primary API surface; required parameters; error handling;
-  version/compat notes; security/performance constraints.
+## Quick Start
 
-### DE-PRIORITIZE / OMIT IF NEEDED (to meet size)
-- Marketing copy, long narratives, screenshots, repeated navigation, legal boilerplate,
-  old changelogs/release notes, acknowledgements.
+Brief description of what this library does and its primary use case.
 
-### COMPRESSION TACTICS
-- Replace paragraphs with bullet points.
-- Collapse lists (“A, B, C”) instead of multi-line items.
-- Shorten phrasing; remove redundancies; keep terminology consistent with the source.
+```python
+# Minimal working example
+from library import MainClass
+client = MainClass(api_key="...")
+result = client.method()
+```
 
-### GUARDRails
-- **Do not invent** endpoints, options, or behaviors not present in the source.
-- Maintain the source language and key terminology.
-- If a section doesn’t exist, omit it—don’t add placeholders.
+## Core API
 
-### SOURCE (truncated to ~50k chars)
-{content[:50000]}
-"""
+### [Primary Class/Function]
 
+**Purpose**: One-line description
+**Parameters**:
+- `param_name` (type): Description
+- `optional_param` (type, optional): Description
+
+**Example**:
+```python
+# Clean, complete example
+result = function(param="value")
+```
+
+## Configuration
+
+### Environment Variables
+- `ENV_VAR_NAME`: Description (default: value)
+
+### Configuration Options
+```python
+config = {{
+    "option": "value",
+    "timeout": 30
+}}
+```
+
+## Common Patterns
+
+### [Use Case 1]
+```python
+# Complete example for common use case
+```
+
+### [Use Case 2]
+```python
+# Another practical example
+```
+
+## Advanced Usage
+
+### Performance Optimization
+- Technique 1: Description
+- Technique 2: Description
+
+### Error Handling
+```python
+try:
+    result = client.method()
+except SpecificError as e:
+    # Handle error
+```
+
+## Troubleshooting
+
+### Common Issues
+- **Issue**: Solution
+- **Error Message**: What it means and how to fix
+
+## API Reference
+
+### Methods
+- `method_name(params)`: Description
+- `another_method(params)`: Description
+
+### Models Available
+- `model-name`: Capabilities and use cases
+</output_format>
+
+<content_rules>
+- REMOVE: All changelog entries, release notes, announcements, dates
+- REMOVE: Marketing language, company information, promotional content
+- REMOVE: Navigation elements, UI components, buttons, links to social media
+- REMOVE: Malformed code with line numbers (1|, 2|, ---|---)
+- CLEAN: Code blocks must be properly formatted with language tags
+- PRESERVE: Technical accuracy, parameter names, API signatures
+- FOCUS: Practical implementation details developers need
+- STRUCTURE: Maintain consistent header hierarchy without skipping levels
+</content_rules>
+
+<quality_checks>
+Before finalizing:
+1. Verify all code examples are complete and runnable
+2. Ensure installation instructions are clear and complete
+3. Check that API documentation includes all essential parameters
+4. Confirm no marketing or changelog content remains
+5. Validate markdown formatting is clean and consistent
+</quality_checks>"""
             
-            message = self.client.messages.create(
-                model="claude-3-sonnet-20240229",
-                max_tokens=4000,
-                temperature=0.0,
+            user_message = f"""<documents>
+<document>
+<source>Technical Documentation</source>
+<content>
+{content[:50000]}
+</content>
+</document>
+</documents>
+
+<instruction>
+Analyze the documentation above and create a structured technical reference following the specified format. Focus on extracting practical, actionable information that developers need.
+</instruction>"""
+            
+            response = self.client.chat(
+                model="command-r-plus-08-2024",
                 messages=[
-                    {"role": "user", "content": prompt}
-                ]
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_message}
+                ],
+                temperature=0.0,
+                seed=42,  # For deterministic output
+                max_tokens=4000
             )
             
-            summary = message.content[0].text
+            summary = response.message.content[0].text
             logger.info(f"AI summarization completed. Original: {len(content)}chars, Summary: {len(summary)}chars")
             
             return summary
@@ -286,3 +480,91 @@ concise, accurate **Markdown** summary suitable for inclusion in `llm.txt`.
             # Fallback to truncation
             max_bytes = target_kb * 1024
             return self._truncate_content(content, max_bytes)
+    
+    def _deduplicate_pages(self, pages: List[PageContent]) -> List[PageContent]:
+        """Remove duplicate content based on content hash."""
+        seen_hashes: Set[str] = set()
+        unique_pages = []
+        
+        for page in pages:
+            # Create hash of normalized content
+            content_hash = hashlib.md5(
+                self._clean_content(page.content).encode('utf-8')
+            ).hexdigest()
+            
+            if content_hash not in seen_hashes:
+                seen_hashes.add(content_hash)
+                unique_pages.append(page)
+            else:
+                logger.debug(f"Skipping duplicate content from: {page.url}")
+        
+        return unique_pages
+    
+    def _post_process_content(self, content: str) -> str:
+        """Final post-processing to ensure clean output."""
+        # Remove any remaining artifacts
+        content = re.sub(r'\[\[.*?\]\]', '', content)  # Remove wiki-style links
+        content = re.sub(r'<!--.*?-->', '', content, flags=re.DOTALL)  # Remove HTML comments
+        
+        # Ensure consistent header hierarchy
+        lines = content.split('\n')
+        processed_lines = []
+        header_stack = []
+        
+        header_re = re.compile(r'^(#+)\s*(.*)$')
+        for line in lines:
+            # Track and fix header hierarchy robustly
+            if line.startswith('#'):
+                m = header_re.match(line)
+                if m:
+                    level = len(m.group(1))
+                    text = m.group(2) or ""
+                    # Ensure we don't skip header levels
+                    if header_stack and level > header_stack[-1] + 1:
+                        level = header_stack[-1] + 1
+                    # Rebuild header safely even if there was no space/text
+                    line = ('#' * level) + ((' ' + text) if text else '')
+
+                    # Update header stack
+                    while header_stack and header_stack[-1] >= level:
+                        header_stack.pop()
+                    header_stack.append(level)
+                # If regex didn't match, fall through and keep line as-is
+
+            processed_lines.append(line)
+        
+        content = '\n'.join(processed_lines)
+        
+        # Final cleanup
+        content = re.sub(r'\n{3,}', '\n\n', content)  # Max 2 consecutive newlines
+        content = re.sub(r'^\s+$', '', content, flags=re.MULTILINE)  # Remove whitespace-only lines
+        
+        return content.strip()
+
+    # Quality validation added to support JobManager usage
+    def _validate_output_quality(self, content: str):
+        """Lightweight sanity checks for composed content.
+
+        Returns a tuple (is_valid, issues).
+        Keeps checks conservative to avoid false negatives.
+        """
+        issues: list[str] = []
+        text = content or ""
+
+        if not text.strip():
+            issues.append("Empty content")
+
+        # Check unbalanced fenced code blocks (```)
+        fences = text.count("```")
+        if fences % 2 == 1:
+            issues.append("Unclosed fenced code block")
+
+        # Check for excessive size (very rough guard, independent of budgeting)
+        if len(text) > (self.max_kb * 1024 * 2):
+            issues.append("Output exceeds 2x configured max_kb")
+
+        # Basic header structure heuristic (optional)
+        # Not strictly required; skip strict enforcement to keep valid
+        # developer docs that start without a title.
+
+        return (len(issues) == 0, issues)

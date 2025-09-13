@@ -1,171 +1,158 @@
 'use client'
 
 import { useState } from 'react'
-import { Copy, Download, Check, ExternalLink } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card'
-import { downloadResult } from '@/lib/api'
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
+import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism'
+import { saveAs } from 'file-saver'
+import { motion, AnimatePresence } from 'framer-motion'
+import { GenerationResult } from '@/lib/types'
 
 interface PreviewPanelProps {
-  content: string
-  jobId: string
-  showFullVersion?: boolean
+  result: GenerationResult
 }
 
-export function PreviewPanel({
-  content,
-  jobId,
-  showFullVersion,
-}: PreviewPanelProps) {
-  const [activeTab, setActiveTab] = useState<'llm.txt' | 'llms-full.txt'>(
-    'llm.txt'
-  )
+export function PreviewPanel({ result }: PreviewPanelProps) {
+  const [activeTab, setActiveTab] = useState<'llm' | 'full'>('llm')
+  const [viewMode, setViewMode] = useState<'raw' | 'rendered'>('raw')
+  const [searchQuery, setSearchQuery] = useState('')
   const [copied, setCopied] = useState(false)
-  const [downloading, setDownloading] = useState(false)
+
+  const activeContent = activeTab === 'llm' ? result.llmTxt : result.llmsFullTxt
+  const activeFilename = activeTab === 'llm' ? 'llm.txt' : 'llms-full.txt'
+
+  const handleDownload = () => {
+    if (!activeContent) return
+    const blob = new Blob([activeContent.content], { type: 'text/plain;charset=utf-8' })
+    saveAs(blob, activeFilename)
+  }
 
   const handleCopy = async () => {
-    try {
-      await navigator.clipboard.writeText(content)
-      setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
-    } catch (err) {
-      console.error('Failed to copy:', err)
-    }
+    if (!activeContent) return
+    await navigator.clipboard.writeText(activeContent.content)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
   }
 
-  const handleDownload = async () => {
-    if (!jobId) return
-
-    try {
-      setDownloading(true)
-
-      // Fetch actual generated content from the backend
-      const result = await downloadResult(jobId, activeTab)
-      const blob = new Blob([result.content], { type: 'text/plain' })
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = activeTab
-      document.body.appendChild(a)
-      a.click()
-      document.body.removeChild(a)
-      URL.revokeObjectURL(url)
-    } catch (err) {
-      console.error('Download failed:', err)
-    } finally {
-      setDownloading(false)
-    }
+  const getHighlightedContent = () => {
+    if (!activeContent) return ''
+    if (!searchQuery) return activeContent.content
+    
+    const regex = new RegExp(`(${searchQuery})`, 'gi')
+    return activeContent.content.replace(regex, '**$1**')
   }
 
-  const lines = content.split('\n')
-  const maxLines = 25
-  const displayLines = lines.slice(0, maxLines)
-  const isExpanded = lines.length <= maxLines
+  const estimateTokens = (text: string) => {
+    return Math.round(text.length / 4)
+  }
+
+  if (!result.llmTxt) return null
 
   return (
-    <Card>
-      <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
-          <div>
-            <CardTitle className="text-base">Preview</CardTitle>
-            <CardDescription>Generated content preview</CardDescription>
-          </div>
-
-          <div className="flex items-center space-x-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleCopy}
-              disabled={copied}
-            >
-              {copied ? (
-                <Check className="h-4 w-4" />
-              ) : (
-                <Copy className="h-4 w-4" />
-              )}
-            </Button>
-
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleDownload}
-              disabled={downloading}
-            >
-              <Download className="h-4 w-4" />
-            </Button>
-          </div>
-        </div>
-
-        {/* Tabs */}
-        {showFullVersion && (
-          <div className="flex space-x-1 rounded-md bg-muted p-1">
+    <div className="terminal-card space-y-4">
+      <div className="flex items-center justify-between">
+        <div className="flex space-x-4">
+          <button
+            onClick={() => setActiveTab('llm')}
+            className={`px-3 py-1 border transition-colors ${
+              activeTab === 'llm'
+                ? 'border-terminal-green bg-terminal-green text-black'
+                : 'border-terminal-green/30 hover:border-terminal-green'
+            }`}
+          >
+            llm.txt ({Math.round(result.llmTxt.size / 1024)}KB)
+          </button>
+          {result.llmsFullTxt && (
             <button
-              onClick={() => setActiveTab('llm.txt')}
-              className={`rounded-sm px-3 py-1 text-sm transition-colors ${
-                activeTab === 'llm.txt'
-                  ? 'bg-background text-foreground shadow-sm'
-                  : 'text-muted-foreground hover:text-foreground'
+              onClick={() => setActiveTab('full')}
+              className={`px-3 py-1 border transition-colors ${
+                activeTab === 'full'
+                  ? 'border-terminal-green bg-terminal-green text-black'
+                  : 'border-terminal-green/30 hover:border-terminal-green'
               }`}
             >
-              llm.txt
+              llms-full.txt ({Math.round(result.llmsFullTxt.size / 1024)}KB)
             </button>
-            <button
-              onClick={() => setActiveTab('llms-full.txt')}
-              className={`rounded-sm px-3 py-1 text-sm transition-colors ${
-                activeTab === 'llms-full.txt'
-                  ? 'bg-background text-foreground shadow-sm'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              llms-full.txt
-            </button>
-          </div>
-        )}
-      </CardHeader>
-
-      <CardContent className="pt-0">
-        <div className="relative">
-          <pre className="code-preview max-h-[32rem] overflow-x-auto overflow-y-auto rounded-md bg-muted/50 p-4 text-sm">
-            <code>
-              {displayLines.map((line, index) => (
-                <div key={index} className="line">
-                  {line || ' '}
-                </div>
-              ))}
-              {!isExpanded && (
-                <div className="italic text-muted-foreground">
-                  ... and {lines.length - maxLines} more lines
-                </div>
-              )}
-            </code>
-          </pre>
-
-          {/* Fade overlay for long content */}
-          {!isExpanded && (
-            <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-muted/50 to-transparent" />
           )}
         </div>
 
-        {jobId && (
-          <div className="mt-4 flex items-center justify-between text-sm text-muted-foreground">
-            <span>Job ID: {jobId.slice(0, 8)}...</span>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => window.open(`/status/${jobId}`, '_blank')}
-            >
-              View Full Status
-              <ExternalLink className="ml-1 h-3 w-3" />
-            </Button>
+        <div className="flex space-x-2">
+          <button
+            onClick={() => setViewMode(viewMode === 'raw' ? 'rendered' : 'raw')}
+            className="px-2 py-1 text-sm border border-terminal-green/30 hover:border-terminal-green transition-colors"
+          >
+            {viewMode === 'raw' ? 'Raw' : 'Rendered'}
+          </button>
+        </div>
+      </div>
+
+      {activeContent && (
+        <div className="space-y-2">
+          <div className="flex items-center justify-between text-sm text-terminal-green/70">
+            <div className="flex space-x-4">
+              <span>{activeContent.content.split('\n').length} lines</span>
+              <span>{Math.round(activeContent.size / 1024)}KB</span>
+              <span>~{estimateTokens(activeContent.content).toLocaleString()} tokens</span>
+            </div>
+            <div className="flex space-x-2">
+              <button
+                onClick={handleCopy}
+                className="px-3 py-1 border border-terminal-green/30 hover:border-terminal-green transition-colors"
+              >
+                {copied ? 'Copied!' : 'Copy'}
+              </button>
+              <button
+                onClick={handleDownload}
+                className="px-3 py-1 border border-terminal-green bg-terminal-green text-black hover:bg-transparent hover:text-terminal-green transition-colors"
+              >
+                Download
+              </button>
+            </div>
           </div>
-        )}
-      </CardContent>
-    </Card>
+
+          <div className="relative">
+            <input
+              type="text"
+              placeholder="Search in file..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="terminal-input w-full mb-2"
+            />
+          </div>
+
+          <div className="bg-black border border-terminal-green/30 rounded-lg overflow-hidden">
+            <div className="max-h-96 overflow-y-auto p-4">
+              {viewMode === 'raw' ? (
+                <pre className="text-xs text-terminal-green/90 whitespace-pre-wrap">
+                  {getHighlightedContent()}
+                </pre>
+              ) : (
+                <SyntaxHighlighter
+                  language="markdown"
+                  style={vscDarkPlus}
+                  customStyle={{
+                    background: 'transparent',
+                    fontSize: '0.75rem',
+                    margin: 0,
+                    padding: 0,
+                  }}
+                  showLineNumbers
+                >
+                  {activeContent.content}
+                </SyntaxHighlighter>
+              )}
+            </div>
+          </div>
+
+          {result.stats && (
+            <div className="grid grid-cols-2 gap-2 text-xs text-terminal-green/70">
+              <div>Pages crawled: {result.stats.pagesCrawled}</div>
+              <div>Content extracted: {Math.round(result.stats.contentExtracted / 1024)}KB</div>
+              <div>Compression ratio: {result.stats.compressionRatio}%</div>
+              <div>Generation time: {result.stats.generationTime}s</div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
   )
 }

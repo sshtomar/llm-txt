@@ -1,62 +1,103 @@
-import { Navigation } from '@/components/navigation'
-import { Hero } from '@/components/hero'
-import { JobSteps } from '@/components/job-steps'
+'use client'
 
-export default function HomePage() {
+import { useState } from 'react'
+import { GeneratorForm } from '@/components/generator-form'
+import { ProgressTracker } from '@/components/progress-tracker'
+import { PreviewPanel } from '@/components/preview-panel'
+import { GenerationResult } from '@/lib/types'
+
+export default function Home() {
+  const [isGenerating, setIsGenerating] = useState(false)
+  const [progress, setProgress] = useState<any>(null)
+  const [result, setResult] = useState<GenerationResult | null>(null)
+  const [error, setError] = useState<string | null>(null)
+
+  const handleSubmit = async (url: string, options: any) => {
+    setIsGenerating(true)
+    setError(null)
+    setResult(null)
+    setProgress({ state: 'initializing', message: 'Parsing robots.txt, discovering sitemap...' })
+
+    try {
+      const response = await fetch('/api/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url, ...options }),
+      })
+
+      if (!response.ok) {
+        throw new Error('Generation failed')
+      }
+
+      const data = await response.json()
+      
+      // Start polling for progress
+      pollProgress(data.jobId)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred')
+      setIsGenerating(false)
+    }
+  }
+
+  const pollProgress = async (jobId: string) => {
+    const eventSource = new EventSource(`/api/progress/${jobId}`)
+
+    eventSource.onmessage = (event) => {
+      const data = JSON.parse(event.data)
+      
+      if (data.state === 'complete') {
+        setResult(data.result)
+        setIsGenerating(false)
+        eventSource.close()
+      } else if (data.state === 'error') {
+        setError(data.message)
+        setIsGenerating(false)
+        eventSource.close()
+      } else {
+        setProgress(data)
+      }
+    }
+
+    eventSource.onerror = () => {
+      setError('Connection lost')
+      setIsGenerating(false)
+      eventSource.close()
+    }
+  }
+
   return (
-    <div className="min-h-screen">
-      <Navigation />
-      <main>
-        <Hero />
-        
-        {/* Features Section */}
-        <section className="border-t py-20">
-          <div className="container">
-            <div className="mx-auto max-w-4xl">
-              <h2 className="mb-12 text-center text-3xl font-bold">How it works</h2>
-              <JobSteps />
-              
-              <div className="mt-16 grid gap-8 md:grid-cols-3">
-                <div className="text-center">
-                  <div className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-lg bg-blue-100 text-blue-600">
-                    <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
-                    </svg>
-                  </div>
-                  <h3 className="mb-2 text-lg font-semibold">Fast Generation</h3>
-                  <p className="text-sm text-muted-foreground">
-                    P50 processing time under 90 seconds for most documentation sites
-                  </p>
-                </div>
-                
-                <div className="text-center">
-                  <div className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-lg bg-green-100 text-green-600">
-                    <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                  </div>
-                  <h3 className="mb-2 text-lg font-semibold">Smart Filtering</h3>
-                  <p className="text-sm text-muted-foreground">
-                    Automatically removes redundant content and focuses on core documentation
-                  </p>
-                </div>
-                
-                <div className="text-center">
-                  <div className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-lg bg-purple-100 text-purple-600">
-                    <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                    </svg>
-                  </div>
-                  <h3 className="mb-2 text-lg font-semibold">Multiple Formats</h3>
-                  <p className="text-sm text-muted-foreground">
-                    Download llm.txt and optional llms-full.txt for comprehensive coverage
-                  </p>
-                </div>
-              </div>
+    <div className="max-w-7xl mx-auto space-y-8">
+      <div className="text-center space-y-4">
+        <h1 className="text-4xl font-bold typing-effect inline-block">
+          Generate Optimized LLM Context Files
+        </h1>
+        <p className="text-terminal-green/70 text-lg">
+          Transform documentation sites into compact, AI-ready text files
+        </p>
+      </div>
+
+      <div className="grid lg:grid-cols-2 gap-8">
+        <div className="space-y-6">
+          <GeneratorForm onSubmit={handleSubmit} isLoading={isGenerating} />
+          
+          {isGenerating && progress && (
+            <ProgressTracker progress={progress} />
+          )}
+
+          {error && (
+            <div className="terminal-card border-terminal-red text-terminal-red">
+              <p className="font-bold mb-2">Error:</p>
+              <p>{error}</p>
             </div>
-          </div>
-        </section>
-      </main>
+          )}
+        </div>
+
+        <div>
+          {result && (
+            <PreviewPanel result={result} />
+          )}
+        </div>
+      </div>
     </div>
   )
 }

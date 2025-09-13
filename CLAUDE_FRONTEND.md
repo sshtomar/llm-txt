@@ -1,244 +1,269 @@
----
-
-# CLAUDE.md — Frontend (Next.js) Guide
-
-> **Project:** URL → `llm.txt` generator
-> **Goal:** Ship a fast, minimal landing page with an interactive generator card (paste URL → preview `llm.txt` → download / open PR).
-> **Success:** Core flow works locally in ≤10 minutes; clean diffs; a11y + performance sane by default.
-
----
-
-## How you (Claude) should work here
-
-1. **Read before changing:** scan `package.json`, `next.config.js`, `app/**`, `components/**`, `lib/**`, `tailwind.config.ts`.
-2. **Plan → apply small diffs:** propose a short plan, then implement in *small, reviewable* changes.
-3. **Prefer reuse:** add components to `components/ui/*`; keep business logic in `lib/*`.
-4. **Determinism & safety:** do not introduce network calls beyond our own `/api` routes. No secrets in client.
-
----
-
-## Stack & conventions
-
-* **Framework:** Next.js (App Router), React 18, TypeScript **strict**.
-* **Styling:** TailwindCSS; small design tokens in `tailwind.config.ts`.
-* **UI kit:** lightweight custom components; ok to add shadcn/ui (only what we use).
-* **Icons:** `lucide-react`.
-* **Pkg mgr:** `pnpm`. Node LTS.
-
-### Project structure
-
-```
-web/
-  app/
-    (marketing)/
-      page.tsx                 # Landing + inline demo
-      pricing/page.tsx
-      privacy/page.tsx
-    generate/page.tsx          # Full generator (advanced options)
-    status/[jobId]/page.tsx    # Job status/preview
-    api/                       # Stubbed API routes for local demo (fetch server)
-  components/
-    hero.tsx
-    generator-card.tsx
-    url-input.tsx
-    options-panel.tsx
-    preview-panel.tsx
-    job-steps.tsx
-    navbar.tsx
-    footer.tsx
-  lib/
-    api.ts                     # typed fetchers (POST /v1/generations, GET /status)
-    validators.ts              # zod URL/params
-    constants.ts
-```
-
----
-
-## Commands (run these)
-
-```bash
-pnpm i                 # install
-pnpm dev               # start Next.js (http://localhost:3000)
-pnpm test              # unit tests (vitest)
-pnpm e2e               # Playwright e2e
-pnpm lint && pnpm typecheck && pnpm format
-```
-
-> Claude: use these commands via shell; paste failing output when asking for changes.
-
----
-
-## Primary tasks (MVP UI)
-
-1. **Landing hero (urlbox-style)**
-
-   * Big headline, subhead, URL input, **Generate** button.
-   * Microcopy: *“Respects robots.txt. First file free—no signup.”*
-   * Right side: **GeneratorCard** with options toggle and live preview.
-
-2. **Generator card**
-
-   * Inputs: `url`, `depth (1–3)`, `exclude paths`, `maxKB`, checkbox `llms-full.txt`.
-   * CTA: **Generate** → call `/api/generate` (stub) → show preview + job id.
-   * Secondary: **Download**, **Copy**, **Open PR** (disabled in MVP).
-
-3. **Status page**
-
-   * Steps: *Queued → Crawling → Summarizing → Composing → Done*.
-   * Poll `/api/status/{jobId}`; when done, show tabs for `llm.txt` / `llms-full.txt`.
-
-4. **Pricing & basics**
-
-   * Simple 3-tier grid (Free / Pro / Team).
-   * Footer links: Privacy, Terms (placeholder).
-
----
-
-## UX rules
-
-* **One job, one control:** URL + one clear primary CTA in the hero.
-* **Optimistic UI:** disable CTA while running; show skeleton preview.
-* **Errors:** inline, human-readable; keep previous inputs intact.
-* **Keyboard-first:** URL input auto-focused; Enter triggers Generate.
-* **Copy affordances:** “Copy `llm.txt`” button with toast.
-
----
-
-## API usage (frontend)
-
-Use our typed fetchers in `lib/api.ts`:
-
-```ts
-export type GenerateBody = {
-  url: string;
-  depth?: number;
-  includeFull?: boolean;
-  blockedPaths?: string[];
-  maxKB?: number;
-};
-
-export async function createGeneration(body: GenerateBody) { /* fetch('/api/generate') */ }
-export async function getStatus(jobId: string) { /* fetch(`/api/status/${jobId}`) */ }
-```
-
-**Never** call third-party domains from the client.
-
----
-
-## Visual design notes
-
-* **Layout:** max-w-6xl center; generous white space.
-* **Color:** soft indigo → white gradient background on hero only.
-* **Card:** glassy card (rounded-2xl, shadow-lg, border, subtle backdrop blur).
-* **Type:** tight headline (tracking-\[-0.02em]), secondary text at 80% opacity.
-* **Preview:** monospace, line numbers (CSS counters), copy button.
-
----
-
-## Accessibility & SEO
-
-* WCAG AA color contrast; focus rings via Tailwind.
-* Labels on all inputs; `aria-live="polite"` for status updates.
-* `Metadata` in App Router; semantic headings; Open Graph tags.
-
----
-
-## Performance
-
-* No heavy UI libs.
-* Debounce URL validation; lazy-load Playwright screenshots **only** if we ever add them.
-* Use `next/script` for analytics (Plausible/Umami) post-MVP.
-
----
-
-## Testing
-
-* **Unit (Vitest + RTL):** `url-input`, `options-panel`, `preview-panel` states.
-* **E2E (Playwright):** Happy path: enter URL → see preview; Error path: invalid URL; Status polling path.
-* **Lints:** eslint (next/core-web-vitals), types, Tailwind class sorter.
-
----
-
-## Allowed actions for Claude Code
-
-**Allowed (no ask):**
-
-* Edit files under `/web/**`, create new components, pages.
-* Run `pnpm` scripts, jest/vitest, playwright, lint/format.
-* Adjust Tailwind config & `globals.css`.
-
-**Ask first:**
-
-* Install new deps, add UI libraries, change Node/Next versions, add analytics.
-
----
-
-## Custom slash commands (put in `.claude/commands/`)
-
-**`build-hero.md`**
-
-```
-Create/improve landing hero:
-- H1 “Paste a docs URL → get llm.txt.”
-- Subhead one line.
-- URL input + Generate CTA.
-- Right: <GeneratorCard /> with options collapsed by default.
-- Keep to 50 lines diff; Tailwind only; responsive md: grid-cols-2.
-```
-
-**`wire-generator.md`**
-
-```
-Implement GeneratorCard:
-1) Use zod to validate url/depth.
-2) Call lib/api.createGeneration, show spinner & disable CTA.
-3) On success: render <PreviewPanel text={data.preview} jobId={data.jobId} />
-4) Error: inline alert; keep prior input.
-5) Add unit tests: submits, disables button, renders preview.
-```
-
-**`add-status-page.md`**
-
-```
-Create /status/[jobId]:
-- Poll lib/api.getStatus every 1.5s (max 60s).
-- Render stepper, final preview with Copy/Download.
-- Handle failed status with retry CTA.
-```
-
-**`fix-a11y.md`**
-
-```
-Run eslint a11y; add labels/aria-live; ensure focus management after generate.
-```
-
----
-
-## Definition of done (frontend change)
-
-* No console errors; types pass; lints clean.
-* e2e happy path green.
-* CLS < 0.02 on hero (no layout jank); Lighthouse perf ≥ 90 on desktop.
-* Copy/Download work in the preview; responsive at 360px width.
-
----
-
-## Copy deck (defaults)
-
-* **H1:** “Paste a docs URL → get `llm.txt`.”
-* **Sub:** “Make your site AI-friendly in under 90 seconds.”
-* **CTA:** “Generate `llm.txt`”
-* **Form help:** “We respect robots.txt. First file free—no signup.”
-
----
-
-## Small backlog (feel free to pick up)
-
-* Add `Diff` tab to preview when `existingLlmTxt` is present.
-* “Trim report” callout when size cap prunes sections.
-* Pricing grid + FAQ section on `/pricing`.
-* Toasts via a tiny `useToast` hook.
-
----
-
-If anything in the repo deviates from this guide (folder names, scripts), **summarize differences first**, then adapt your plan.
+# Build a Developer-Focused Frontend for llm.txt Generator Service
+
+Create a modern, developer-centric web interface for a service that crawls documentation sites and generates optimized `llm.txt` files for LLM context windows.
+
+## Core Functionality
+- **Input**: URL field for documentation sites (with optional depth/settings)
+- **Process**: Async crawling with detailed progress tracking  
+- **Output**: Generated `llm.txt` and optional `llms-full.txt` with preview and download capabilities
+
+## Design Requirements
+
+### Typography & Visual Identity
+- **Primary font**: Berkeley Mono (with fallbacks: SF Mono, Fira Code, JetBrains Mono, Cascadia Code)
+- **Aesthetic**: Clean, terminal-inspired, developer-friendly
+- **Style**: Minimal brutalist design with sharp edges, reminiscent of vintage technical documentation
+- **Colors**: High contrast, inspired by classic terminal themes
+
+### Theme System
+- **Dark mode default** with light mode toggle
+- **Dark palette**: Deep blacks (#000, #111), bright accent colors (#00ff00, #ff6b6b, #4ecdc4)  
+- **Light palette**: Clean whites (#fff, #f8f9fa), muted accent colors
+- **Terminal-style syntax highlighting** for code blocks and previews
+
+### Layout & Components
+
+#### Header
+- Clean logo/title with monospace typography
+- Theme toggle (terminal-style switch)
+- GitHub link, documentation link
+
+#### Main Interface
+- **URL input**: Large, prominent text field with validation
+- **Advanced options**: Collapsible section for depth, size limits, inclusion/exclusion patterns
+- **Generate button**: Terminal-style CTA with hover effects
+
+#### Progress Tracking System (Key Feature)
+Since crawling is async and can take 30-90 seconds:
+
+**Progress States**:
+1. **Initializing**: "Parsing robots.txt, discovering sitemap..."
+2. **Crawling**: "Fetching pages (23/45) - Respecting rate limits..."  
+3. **Processing**: "Extracting content, cleaning markdown..."
+4. **Composing**: "Assembling llm.txt, applying size budget..."
+5. **Complete**: "Generated 847KB llm.txt (+ 2.3MB full version)"
+
+**Progress UI Elements**:
+- **Terminal-style progress bars** with ASCII art indicators
+- **Real-time log stream** showing crawled URLs, blocked pages, size calculations
+- **Live stats**: Pages processed, content extracted, final size estimates
+- **Estimated time remaining** with context ("Usually takes 60-90s for docs sites")
+
+#### Results Section (Enhanced)
+
+**File Downloads & Preview Panel**:
+- **Download Cards**: 
+  - Primary `llm.txt` card with file size, optimized badge
+  - Secondary `llms-full.txt` card (if generated) with "Complete Version" label
+  - One-click download buttons with progress indicators
+  - Copy-to-clipboard buttons for quick access
+
+**Interactive Preview System**:
+- **Tabbed interface**: Switch between `llm.txt` and `llms-full.txt` previews
+- **Syntax-highlighted preview**: Full markdown rendering with Berkeley Mono
+- **Preview controls**:
+  - **Scroll to section**: Quick navigation to different doc sections
+  - **Search within preview**: Find specific content
+  - **Line numbers**: Developer-friendly reference
+  - **Raw/rendered toggle**: Switch between markdown source and formatted view
+- **Preview window**: Resizable, terminal-style with scroll bars
+- **Content stats overlay**: Show character count, estimated tokens, compression ratio
+
+**Preview Features**:
+```typescript
+interface PreviewState {
+  content: string
+  totalLines: number
+  totalChars: number
+  estimatedTokens: number
+  sections: Array<{title: string, lineStart: number}>
+  searchQuery?: string
+  currentView: 'raw' | 'rendered'
+}
+Stats Dashboard:
+
+Generation summary: Pages crawled, content extracted, final sizes
+Comparison metrics: Original size vs. compressed size
+Quality indicators: Sections preserved, content types included
+Time metrics: Total generation time, pages per second
+
+Error Handling
+
+Robots.txt blocked: Clear message with sitemap upload alternative
+Timeout/failures: Actionable error messages with retry options
+Validation errors: Inline feedback for malformed URLs
+Download errors: Fallback options, retry mechanisms
+
+Technical Implementation
+Framework & Stack
+
+Next.js 14 with App Router
+TypeScript throughout
+Tailwind CSS for styling with custom terminal theme
+Framer Motion for smooth progress animations
+WebSocket or SSE for real-time progress updates
+React Syntax Highlighter for code preview
+FileSaver.js for robust download handling
+
+Download Implementation
+typescript// Download functionality
+interface GeneratedFiles {
+  llmTxt: {
+    content: string
+    size: number
+    downloadUrl: string
+  }
+  llmsFullTxt?: {
+    content: string  
+    size: number
+    downloadUrl: string
+  }
+}
+
+// Preview functionality  
+interface PreviewComponent {
+  content: string
+  filename: string
+  onDownload: () => void
+  onCopy: () => void
+  searchable: boolean
+  navigable: boolean
+}
+Key Features
+
+Streaming preview: Show content as it's being generated
+Lazy loading: Load preview content efficiently for large files
+Download with metadata: Include generation timestamp, source URL in filename
+Batch download: Option to download both files as ZIP
+Share functionality: Generate shareable links to generated content
+
+Responsive Design
+
+Mobile-first: Collapsible preview panel, touch-friendly controls
+Desktop optimization: Side-by-side progress/preview layout
+Preview responsiveness: Adapts to different screen sizes
+Terminal breakpoints: Consistent with monospace layouts
+
+Interactive Elements
+
+URL validation: Real-time feedback with favicon fetching
+Copy-to-clipboard: One-click copying of entire files or selected sections
+Keyboard shortcuts:
+
+Ctrl+Enter to submit
+Ctrl+D to download
+Ctrl+C to copy preview
+/ to search in preview
+
+
+Terminal commands: Show equivalent CLI/curl commands
+
+Preview UX Details
+
+Loading preview: Skeleton with typing animation effect
+Preview transitions: Smooth fade between different files
+Content highlighting: Highlight matching search terms
+Section bookmarks: Quick jump to different documentation sections
+Preview toolbar: Download, copy, search, navigate controls
+Content warnings: Show if content was truncated, sections dropped
+
+Content & Copy
+
+Download buttons: "Download llm.txt (847KB)" with file size
+Preview headers: "Preview: docs.example.com/llm.txt"
+Status messages: "Ready to download • 2,847 lines • ~15K tokens"
+Copy feedback: "Copied to clipboard!" with fade animation
+Preview placeholders: "Generated content will appear here..."
+
+Performance & UX
+
+Instant preview: Show content as soon as generation completes
+Progressive download: Allow partial downloads if generation is slow
+Preview caching: Cache previews for quick re-access
+Download optimization: Efficient file serving, resume support
+Accessibility: Full keyboard navigation, screen reader support for previews
+
+Advanced Preview Features
+
+Diff view: Compare llm.txt vs llms-full.txt side-by-side
+Token estimation: Real-time token count for different models (GPT-4, Claude)
+Content analysis: Show content types, section breakdown
+Export options: Multiple formats, custom naming conventions
+
+# Analyze Linear.app Design Patterns for llm.txt Generator Frontend
+
+Use Playwright to analyze Linear's website (https://linear.app) and extract design patterns, UI components, and implementation details that we can adapt for our llm.txt generator frontend.
+
+## Analysis Focus Areas
+
+### 1. Visual Design System
+**Task**: Visit Linear's homepage and main app interface
+- Screenshot key sections: header, navigation, main content areas
+- Analyze color palette (dark/light themes)
+- Document typography choices (fonts, sizes, weights)
+- Note spacing patterns and grid systems
+- Examine button styles, form inputs, cards
+
+### 2. Progress & Loading States
+**Task**: Look for any progress indicators, loading states, or status displays
+- How do they show task progress/completion?
+- Loading animations and transitions
+- Status badges and indicators
+- Timeline/progress visualization patterns
+
+### 3. Terminal/Code Aesthetic Elements
+**Task**: Find any code-related or terminal-style UI elements
+- Monospace font usage
+- Code block styling
+- Terminal-like components
+- Developer-focused design patterns
+
+### 4. Layout & Navigation
+**Task**: Analyze their responsive design and navigation patterns
+- Header/navigation structure
+- Mobile vs desktop layouts
+- Sidebar patterns
+- Content organization
+
+### 5. Interactive Elements & Animations
+**Task**: Test interactions and document animation patterns
+- Hover states and transitions
+- Micro-interactions
+- Button animations
+- Page transitions
+- Loading/progress animations
+
+## Specific Playwright Actions
+```javascript
+// Visit and analyze Linear's design
+await page.goto('https://linear.app');
+
+// Take screenshots of key sections
+await page.screenshot({ path: 'linear-homepage.png', fullPage: true });
+
+// Test dark/light theme toggle if available
+await page.click('[data-theme-toggle]', { timeout: 5000 }).catch(() => {});
+await page.screenshot({ path: 'linear-dark-theme.png' });
+
+// Analyze CSS custom properties for design tokens
+const designTokens = await page.evaluate(() => {
+  const styles = getComputedStyle(document.documentElement);
+  const tokens = {};
+  for (let i = 0; i < styles.length; i++) {
+    const prop = styles[i];
+    if (prop.startsWith('--')) {
+      tokens[prop] = styles.getPropertyValue(prop);
+    }
+  }
+  return tokens;
+});
+
+// Check for specific UI patterns we need
+const uiPatterns = await page.evaluate(() => {
+  return {
+    progressBars: document.querySelectorAll('[role="progressbar"]').length,
+    loadingSpinners: document.querySelectorAll('[data-loading]').length,
+    codeBlocks: document.querySelectorAll('pre, code').length,
+    terminalElements: document.querySelectorAll('[class*="terminal"], [class*="mono"]').length
+  };
+});

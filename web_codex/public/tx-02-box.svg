@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 360" role="img" aria-label="Box drawing technical illustration">
+  <defs>
+    <style>
+      .stroke { stroke: currentColor; fill: none; }
+      .thin { stroke-width: 1; }
+      .mid { stroke-width: 2; }
+      .bold { stroke-width: 3; }
+      .dash { stroke-dasharray: 6 6; }
+      .subtle { opacity: .55; }
+      .label { fill: currentColor; font-family: ui-monospace, Menlo, monospace; font-size: 11px; letter-spacing: .06em; }
+    </style>
+  </defs>
+
+  <!-- Outer frame -->
+  <rect class="stroke bold" x="24" y="24" width="592" height="312" rx="2"/>
+
+  <!-- Inner panel -->
+  <rect class="stroke mid subtle" x="48" y="56" width="544" height="256" rx="2"/>
+
+  <!-- Grid (3 cols x 2 rows) -->
+  <path class="stroke thin subtle" d="M232 56V312 M408 56V312 M48 184H592 M48 248H592"/>
+
+  <!-- Corner ticks -->
+  <path class="stroke mid" d="M40 40h18 M40 40v18 M600 40h-18 M600 40v18 M40 336h18 M40 336v-18 M600 336h-18 M600 336v-18"/>
+
+  <!-- Diagonals (construction) -->
+  <path class="stroke thin dash subtle" d="M48 56L592 312 M592 56L48 312"/>
+
+  <!-- Notches on sides -->
+  <path class="stroke thin" d="M320 24v16 M320 320v16 M24 188h16 M600 188h16"/>
+
+  <!-- Title band -->
+  <rect class="stroke mid" x="48" y="56" width="200" height="28"/>
+  <text class="label" x="58" y="74">TX‑02 • box‑drawing</text>
+
+  <!-- Product tag (right) -->
+  <rect class="stroke mid" x="496" y="24" width="96" height="24"/>
+  <text class="label" x="506" y="40">llms.txt</text>
+
+  <!-- Center caption (optional watermark) -->
+  <text class="label subtle" x="320" y="198" text-anchor="middle">diagram • scale 1:1</text>
+
+  <!-- Small measurement marks -->
+  <path class="stroke thin subtle" d="M88 328v-8 M128 328v-8 M168 328v-8 M208 328v-8 M248 328v-8 M288 328v-8 M328 328v-8 M368 328v-8 M408 328v-8 M448 328v-8 M488 328v-8 M528 328v-8"/>
+</svg>
+

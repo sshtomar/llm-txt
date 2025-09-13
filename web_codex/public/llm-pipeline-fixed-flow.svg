@@ -1,0 +1,253 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 560" width="1200" height="700" role="img" aria-label="llms.txt pipeline diagram in box-drawing style" style="color:#e5e7eb">
+  <defs>
+    <style>
+      .bg { fill: #1a1a1a; stroke-width: 0px; }
+      .line { fill: currentColor; stroke-width: 0px; }
+      .shadow { fill: #334155; stroke-width: 0px; opacity: 0.5; } /* slate-700 on dark */
+      .arrow-text {
+        fill: #14b8a6; /* terminal teal/green accent */
+        font-family: 'Berkeley Mono','SF Mono','Fira Code','JetBrains Mono','Cascadia Code',ui-monospace,Menlo,Monaco,Consolas,'Liberation Mono',monospace;
+        font-size: 16px;
+        letter-spacing: 0px;
+        font-weight: 400;
+      }
+      .text {
+        fill: currentColor;
+        font-family: 'Berkeley Mono','SF Mono','Fira Code','JetBrains Mono','Cascadia Code',ui-monospace,Menlo,Monaco,Consolas,'Liberation Mono',monospace;
+        font-size: 11px;
+        letter-spacing: 0px;
+      }
+      .title {
+        fill: currentColor;
+        font-family: 'Berkeley Mono','SF Mono','Fira Code','JetBrains Mono','Cascadia Code',ui-monospace,Menlo,Monaco,Consolas,'Liberation Mono',monospace;
+        font-size: 13px;
+        font-weight: 400;
+        letter-spacing: 0px;
+      }
+    </style>
+
+    <!-- Drop shadow removed for crisp text on dark backgrounds -->
+  </defs>
+
+  <!-- Transparent background to inherit page theme -->
+  <rect width="960" height="560" class="bg"/>
+
+  <!-- Pipeline diagram with proper alignment -->
+  <g transform="translate(40, 60)">
+    
+    <!-- Remove the light plate for dark theme -->
+    
+    <!-- Top border with shadow -->
+    <g transform="translate(2, 2)">
+      <rect x="0" y="0" width="800" height="1.2" class="shadow"/>
+      <rect x="0" y="1.2" width="1.2" height="57.6" class="shadow"/>
+      <rect x="798.8" y="1.2" width="1.2" height="57.6" class="shadow"/>
+      <rect x="0" y="58.8" width="800" height="1.2" class="shadow"/>
+    </g>
+    
+    <!-- Top border -->
+    <rect x="0" y="0" width="800" height="1.2" class="line"/>
+    <rect x="0" y="1.2" width="1.2" height="57.6" class="line"/>
+    <rect x="798.8" y="1.2" width="1.2" height="57.6" class="line"/>
+    
+    <!-- Pipeline title -->
+    <text x="400" y="36" class="title" text-anchor="middle">URL → ROBOTS → SITEMAP → CRAWL → EXTRACT → COMPOSE → OUTPUTS</text>
+    
+    <!-- Separator -->
+    <rect x="0" y="58.8" width="800" height="1.2" class="line"/>
+
+    <!-- ROW 1: Input Processing -->
+    
+    <!-- INPUT section -->
+    <g transform="translate(40, 80)">
+      <!-- Shadow -->
+      <g transform="translate(3, 3)">
+        <rect x="0" y="0" width="160" height="48" class="shadow"/>
+      </g>
+      <!-- Box -->
+      <rect x="0" y="0" width="160" height="1.2" class="line"/>
+      <rect x="0" y="0" width="1.2" height="48" class="line"/>
+      <rect x="158.8" y="0" width="1.2" height="48" class="line"/>
+      <rect x="0" y="46.8" width="160" height="1.2" class="line"/>
+      
+      <text x="80" y="16" class="title" text-anchor="middle">INPUT URL</text>
+      <text x="80" y="30" class="text" text-anchor="middle">https://docs.example.com</text>
+      <text x="80" y="42" class="text" text-anchor="middle">validate • normalize</text>
+    </g>
+
+    <!-- Arrow 1 - Real arrow character -->
+    <text x="220" y="108" class="arrow-text" text-anchor="middle">→</text>
+
+    <!-- ROBOTS section -->
+    <g transform="translate(240, 80)">
+      <!-- Shadow -->
+      <g transform="translate(3, 3)">
+        <rect x="0" y="0" width="160" height="48" class="shadow"/>
+      </g>
+      <!-- Box -->
+      <rect x="0" y="0" width="160" height="1.2" class="line"/>
+      <rect x="0" y="0" width="1.2" height="48" class="line"/>
+      <rect x="158.8" y="0" width="1.2" height="48" class="line"/>
+      <rect x="0" y="46.8" width="160" height="1.2" class="line"/>
+      
+      <text x="80" y="16" class="title" text-anchor="middle">robots.txt</text>
+      <text x="80" y="30" class="text" text-anchor="middle">respect • crawl-delay</text>
+      <text x="80" y="42" class="text" text-anchor="middle">check permissions</text>
+    </g>
+
+    <!-- Arrow 2 - Real arrow character -->
+    <text x="420" y="108" class="arrow-text" text-anchor="middle">→</text>
+
+    <!-- SITEMAP section -->
+    <g transform="translate(440, 80)">
+      <!-- Shadow -->
+      <g transform="translate(3, 3)">
+        <rect x="0" y="0" width="160" height="48" class="shadow"/>
+      </g>
+      <!-- Box -->
+      <rect x="0" y="0" width="160" height="1.2" class="line"/>
+      <rect x="0" y="0" width="1.2" height="48" class="line"/>
+      <rect x="158.8" y="0" width="1.2" height="48" class="line"/>
+      <rect x="0" y="46.8" width="160" height="1.2" class="line"/>
+      
+      <text x="80" y="16" class="title" text-anchor="middle">sitemap discovery</text>
+      <text x="80" y="30" class="text" text-anchor="middle">/sitemap.xml • links</text>
+      <text x="80" y="42" class="text" text-anchor="middle">auto-discover paths</text>
+    </g>
+
+    <!-- Arrow 3 - Downward from SITEMAP to CRAWL -->
+    <text x="520" y="150" class="arrow-text" text-anchor="middle">↓</text>
+
+    <!-- ROW 2: Processing Pipeline -->
+    
+    <!-- CRAWL section -->
+    <g transform="translate(40, 180)">
+      <!-- Shadow -->
+      <g transform="translate(4, 4)">
+        <rect x="0" y="0" width="180" height="60" class="shadow"/>
+      </g>
+      <!-- Box -->
+      <rect x="0" y="0" width="180" height="1.2" class="line"/>
+      <rect x="0" y="0" width="1.2" height="60" class="line"/>
+      <rect x="178.8" y="0" width="1.2" height="60" class="line"/>
+      <rect x="0" y="58.8" width="180" height="1.2" class="line"/>
+      
+      <text x="90" y="18" class="title" text-anchor="middle">ASYNC CRAWLER</text>
+      <text x="90" y="32" class="text" text-anchor="middle">polite • same-origin</text>
+      <text x="90" y="44" class="text" text-anchor="middle">rate-limited • progress</text>
+      <text x="90" y="56" class="text" text-anchor="middle">JS rendering fallback</text>
+    </g>
+
+    <!-- Arrow 4 - Horizontal right -->
+    <text x="240" y="214" class="arrow-text" text-anchor="middle">→</text>
+
+    <!-- EXTRACT section -->
+    <g transform="translate(260, 180)">
+      <!-- Shadow -->
+      <g transform="translate(4, 4)">
+        <rect x="0" y="0" width="180" height="60" class="shadow"/>
+      </g>
+      <!-- Box -->
+      <rect x="0" y="0" width="180" height="1.2" class="line"/>
+      <rect x="0" y="0" width="1.2" height="60" class="line"/>
+      <rect x="178.8" y="0" width="1.2" height="60" class="line"/>
+      <rect x="0" y="58.8" width="180" height="1.2" class="line"/>
+      
+      <text x="90" y="18" class="title" text-anchor="middle">EXTRACT + CLEAN</text>
+      <text x="90" y="32" class="text" text-anchor="middle">Markdown-first</text>
+      <text x="90" y="44" class="text" text-anchor="middle">remove boilerplate</text>
+      <text x="90" y="56" class="text" text-anchor="middle">preserve code blocks</text>
+    </g>
+
+    <!-- Arrow 5 - Horizontal right -->
+    <text x="460" y="214" class="arrow-text" text-anchor="middle">→</text>
+
+    <!-- COMPOSE section -->
+    <g transform="translate(480, 180)">
+      <!-- Shadow -->
+      <g transform="translate(4, 4)">
+        <rect x="0" y="0" width="200" height="60" class="shadow"/>
+      </g>
+      <!-- Box -->
+      <rect x="0" y="0" width="200" height="1.2" class="line"/>
+      <rect x="0" y="0" width="1.2" height="60" class="line"/>
+      <rect x="198.8" y="0" width="1.2" height="60" class="line"/>
+      <rect x="0" y="58.8" width="200" height="1.2" class="line"/>
+      
+      <text x="100" y="18" class="title" text-anchor="middle">COMPOSE</text>
+      <text x="100" y="32" class="text" text-anchor="middle">prioritize high-signal</text>
+      <text x="100" y="44" class="text" text-anchor="middle">size budget • deterministic</text>
+      <text x="100" y="56" class="text" text-anchor="middle">smart truncation</text>
+    </g>
+
+    <!-- Arrow 6 - Vertical down -->
+    <text x="580" y="262" class="arrow-text" text-anchor="middle">↓</text>
+
+    <!-- OUTPUTS section -->
+    <g transform="translate(480, 280)">
+      <!-- Shadow -->
+      <g transform="translate(4, 4)">
+        <rect x="0" y="0" width="200" height="70" class="shadow"/>
+      </g>
+      <!-- Box -->
+      <rect x="0" y="0" width="200" height="1.2" class="line"/>
+      <rect x="0" y="0" width="1.2" height="70" class="line"/>
+      <rect x="198.8" y="0" width="1.2" height="70" class="line"/>
+      <rect x="0" y="68.8" width="200" height="1.2" class="line"/>
+      
+      <text x="100" y="18" class="title" text-anchor="middle">DELIVERABLES</text>
+      
+      <!-- Output files with shadows -->
+      <g transform="translate(25, 28)">
+        <!-- Shadow -->
+        <g transform="translate(2, 2)">
+          <rect x="0" y="0" width="70" height="26" class="shadow"/>
+        </g>
+        <!-- Box -->
+        <rect x="0" y="0" width="70" height="1.2" class="line"/>
+        <rect x="0" y="0" width="1.2" height="26" class="line"/>
+        <rect x="68.8" y="0" width="1.2" height="26" class="line"/>
+        <rect x="0" y="24.8" width="70" height="1.2" class="line"/>
+        <text x="35" y="14" class="text" text-anchor="middle">llm.txt</text>
+        <text x="35" y="24" class="text" text-anchor="middle">847KB</text>
+      </g>
+
+      <g transform="translate(105, 28)">
+        <!-- Shadow -->
+        <g transform="translate(2, 2)">
+          <rect x="0" y="0" width="85" height="26" class="shadow"/>
+        </g>
+        <!-- Box -->
+        <rect x="0" y="0" width="85" height="1.2" class="line"/>
+        <rect x="0" y="0" width="1.2" height="26" class="line"/>
+        <rect x="83.8" y="0" width="1.2" height="26" class="line"/>
+        <rect x="0" y="24.8" width="85" height="1.2" class="line"/>
+        <text x="42.5" y="14" class="text" text-anchor="middle">llm-full.txt</text>
+        <text x="42.5" y="24" class="text" text-anchor="middle">2.3MB</text>
+      </g>
+
+      <text x="100" y="64" class="text" text-anchor="middle">60-90 seconds typical</text>
+    </g>
+
+    <!-- Feature badges at bottom with shadow -->
+    <g transform="translate(0, 370)">
+      <!-- Shadow -->
+      <g transform="translate(3, 3)">
+        <rect x="0" y="0" width="800" height="32" class="shadow"/>
+      </g>
+      <!-- Box -->
+      <rect x="0" y="0" width="800" height="1.2" class="line"/>
+      <rect x="0" y="1.2" width="1.2" height="30.8" class="line"/>
+      <rect x="798.8" y="1.2" width="1.2" height="30.8" class="line"/>
+      <rect x="0" y="32" width="800" height="1.2" class="line"/>
+
+      <text x="120" y="20" class="text" text-anchor="middle">robots-aware</text>
+      <text x="280" y="20" class="text" text-anchor="middle">deterministic</text>
+      <text x="440" y="20" class="text" text-anchor="middle">size-optimized</text>
+      <text x="600" y="20" class="text" text-anchor="middle">polite crawling</text>
+    </g>
+  </g>
+
+  <!-- Bottom attribution removed -->
+</svg>

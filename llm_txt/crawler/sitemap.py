@@ -93,6 +93,12 @@ class SitemapParser:
             response = self.session.get(sitemap_url, timeout=30)
             response.raise_for_status()
             
+            # Check if the response is actually XML
+            content_type = response.headers.get('content-type', '').lower()
+            if 'html' in content_type or response.text.strip().startswith('<!DOCTYPE') or response.text.strip().startswith('<html'):
+                logger.warning(f"Sitemap URL {sitemap_url} returned HTML instead of XML. Sitemap may be blocked or unavailable.")
+                return urls
+            
             # Parse XML
             root = ET.fromstring(response.content)
             
@@ -108,7 +114,9 @@ class SitemapParser:
                 urls.update(self._parse_url_sitemap(root))
                 
         except ET.ParseError as e:
-            logger.error(f"XML parsing error for sitemap {sitemap_url}: {e}")
+            # Check if this might be an HTML page
+            if sitemap_url:
+                logger.warning(f"Failed to parse sitemap at {sitemap_url} - may be blocked or returning HTML")
         except RequestException as e:
             logger.error(f"Network error fetching sitemap {sitemap_url}: {e}")
         except Exception as e:

@@ -10,13 +10,16 @@ import time
 class CrawlConfig:
     """Configuration for web crawling."""
     
-    max_pages: int = 100
-    max_depth: int = 3
+    max_pages: int = 150
+    max_depth: int = 5
     request_delay: float = 1.0
     user_agent: str = "llm-txt-generator/0.1.0"
     respect_robots: bool = True
     timeout: int = 30
     follow_redirects: bool = True
+    # Preferred language (used to filter locale-specific pages)
+    # Example: "en" to prefer English content only
+    language: Optional[str] = "en"
 
 
 @dataclass

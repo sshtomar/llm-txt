@@ -5,8 +5,8 @@ import logging
 import time
 from typing import List, Set, Optional, Dict, Any
 from urllib.parse import urljoin, urlparse, urlencode
-import requests
-from requests.exceptions import RequestException
+import aiohttp
+from aiohttp import ClientError, ClientTimeout
 from bs4 import BeautifulSoup
 import html2text
 
@@ -20,18 +20,19 @@ logger = logging.getLogger(__name__)
 class WebCrawler:
     """Web crawler for extracting content from documentation sites."""
     
-    def __init__(self, config: Optional[CrawlConfig] = None) -> None:
+    def __init__(self, config: Optional[CrawlConfig] = None, progress_callback=None) -> None:
         self.config = config or CrawlConfig()
+        self.progress_callback = progress_callback  # Callback for progress updates
         self.robots_checker = RobotsChecker(self.config.user_agent)
         self.sitemap_parser = SitemapParser(self.config.user_agent)
-        self.session = requests.Session()
-        self.session.headers.update({
+        self.headers = {
             "User-Agent": self.config.user_agent,
             "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
             "Accept-Language": "en-US,en;q=0.5",
             "Accept-Encoding": "gzip, deflate",
             "Connection": "keep-alive"
-        })
+        }
+        self.session: Optional[aiohttp.ClientSession] = None
         
         # Initialize HTML to markdown converter
         self.html2text = html2text.HTML2Text()
@@ -41,18 +42,38 @@ class WebCrawler:
         self.html2text.body_width = 0  # No line wrapping
         self.html2text.unicode_snob = True
     
-    def crawl(self, start_url: str) -> CrawlResult:
+    async def crawl(self, start_url: str) -> CrawlResult:
         """Crawl a website starting from the given URL."""
         start_time = time.time()
         
         logger.info(f"Starting crawl from {start_url}")
         
+        # Create session for this crawl
+        timeout = ClientTimeout(total=self.config.timeout)
+        self.session = aiohttp.ClientSession(headers=self.headers, timeout=timeout)
+        
+        try:
+            result = await self._crawl_internal(start_url)
+            return result
+        finally:
+            if self.session:
+                await self.session.close()
+    
+    async def _crawl_internal(self, start_url: str) -> CrawlResult:
+        """Internal crawl implementation."""
+        
         # Discover URLs from sitemap
         discovered_urls = self.sitemap_parser.discover_urls(start_url)
         
-        # Add start URL if not in sitemap
-        if start_url not in discovered_urls:
-            discovered_urls.add(start_url)
+        # If sitemap failed or returned no URLs, use fallback strategy
+        if not discovered_urls:
+            logger.warning(f"No sitemap found or accessible for {start_url}. Using fallback crawling strategy.")
+            discovered_urls = await self._fallback_url_discovery(start_url)
+        
+        # Always include the start URL
+        discovered_urls.add(start_url)
+        
+        logger.info(f"Total URLs discovered: {len(discovered_urls)}")
         
         # Filter URLs and organize by depth
         urls_to_crawl = self._organize_urls_by_depth(start_url, discovered_urls)
@@ -80,7 +101,7 @@ class WebCrawler:
                     continue
                 
                 # Fetch page
-                page_content = self._fetch_page(url, depth)
+                page_content = await self._fetch_page(url, depth)
                 if page_content:
                     pages.append(page_content)
                     logger.debug(f"Successfully crawled: {url}")
@@ -89,7 +110,7 @@ class WebCrawler:
                     logger.warning(f"Failed to crawl: {url}")
                 
                 # Respect crawl delay
-                self._respect_crawl_delay(url)
+                await self._respect_crawl_delay(url)
         
         duration = time.time() - start_time
         
@@ -213,6 +234,74 @@ class WebCrawler:
         except Exception as e:
             logger.error(f"Unexpected error fetching {url}: {e}")
             return None
+    
+    def _fallback_url_discovery(self, start_url: str) -> Set[str]:
+        """Fallback URL discovery when sitemap is not available.
+        
+        This method:
+        1. Crawls the start page to find links
+        2. Looks for common documentation patterns
+        3. Returns a curated set of URLs to crawl
+        """
+        discovered_urls: Set[str] = set()
+        
+        try:
+            # Parse the base URL
+            parsed_base = urlparse(start_url)
+            base_domain = f"{parsed_base.scheme}://{parsed_base.netloc}"
+            
+            # Common documentation paths to try
+            common_doc_paths = [
+                '/docs', '/documentation', '/api', '/reference', 
+                '/guide', '/tutorial', '/getting-started', '/quickstart',
+                '/api-reference', '/api-docs', '/developer', '/developers',
+                '/help', '/manual', '/user-guide', '/examples'
+            ]
+            
+            # Add common paths
+            for path in common_doc_paths:
+                potential_url = urljoin(base_domain, path)
+                discovered_urls.add(potential_url)
+            
+            # Fetch the start page and extract links
+            logger.info(f"Attempting to discover URLs from page content at {start_url}")
+            response = self.session.get(start_url, timeout=self.config.timeout)
+            
+            if response.status_code == 200:
+                soup = BeautifulSoup(response.text, 'html.parser')
+                
+                # Find all links
+                for link in soup.find_all('a', href=True):
+                    href = link['href']
+                    absolute_url = urljoin(start_url, href)
+                    
+                    # Only include URLs from the same domain
+                    parsed_url = urlparse(absolute_url)
+                    if parsed_url.netloc == parsed_base.netloc:
+                        # Filter for documentation-related URLs
+                        url_lower = absolute_url.lower()
+                        doc_keywords = ['doc', 'api', 'guide', 'tutorial', 'reference', 
+                                      'manual', 'help', 'example', 'getting-started']
+                        
+                        if any(keyword in url_lower for keyword in doc_keywords):
+                            discovered_urls.add(absolute_url)
+                            
+                        # Also add URLs that are direct children of common doc paths
+                        for doc_path in common_doc_paths:
+                            if doc_path in parsed_url.path:
+                                discovered_urls.add(absolute_url)
+                
+                logger.info(f"Discovered {len(discovered_urls)} URLs through fallback strategy")
+            
+        except Exception as e:
+            logger.error(f"Error in fallback URL discovery: {e}")
+            # Return at least some common paths even if crawling fails
+            parsed_base = urlparse(start_url)
+            base_domain = f"{parsed_base.scheme}://{parsed_base.netloc}"
+            for path in ['/docs', '/api', '/documentation']:
+                discovered_urls.add(urljoin(base_domain, path))
+        
+        return discovered_urls
     
     def _clean_soup(self, soup: BeautifulSoup) -> None:
         """Remove unwanted elements from the parsed HTML."""

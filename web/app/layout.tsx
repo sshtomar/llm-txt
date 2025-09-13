@@ -1,18 +1,10 @@
 import type { Metadata } from 'next'
-import { Inter } from 'next/font/google'
 import './globals.css'
-import { ThemeProvider } from '@/lib/theme-provider'
-
-const inter = Inter({ subsets: ['latin'] })
+import { Header } from '@/components/header'
 
 export const metadata: Metadata = {
-  title: 'LLM-TXT Generator',
-  description: 'Convert documentation URLs to LLM-friendly summaries',
-  openGraph: {
-    title: 'LLM-TXT Generator',
-    description: 'Make your site AI-friendly in under 90 seconds',
-    type: 'website',
-  },
+  title: 'LLM.txt Generator',
+  description: 'Generate optimized llm.txt files from documentation sites',
 }
 
 export default function RootLayout({
@@ -21,32 +13,17 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html
-      lang="en"
-      className="dark"
-      style={{ colorScheme: 'dark' }}
-      suppressHydrationWarning
-    >
-      <head>
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `
-              (function() {
-                try {
-                  const theme = localStorage.getItem('theme') || 'dark';
-                  document.documentElement.className = theme;
-                  document.documentElement.style.colorScheme = theme;
-                } catch (e) {
-                  document.documentElement.className = 'dark';
-                  document.documentElement.style.colorScheme = 'dark';
-                }
-              })();
-            `,
-          }}
-        />
-      </head>
-      <body className={inter.className}>
-        <ThemeProvider defaultTheme="dark">{children}</ThemeProvider>
+    <html lang="en" suppressHydrationWarning>
+      <body className="font-mono bg-black text-terminal-green min-h-screen">
+        <div className="flex flex-col min-h-screen">
+          <Header />
+          <main className="flex-1 container mx-auto px-4 py-8">
+            {children}
+          </main>
+          <footer className="border-t border-terminal-green/30 py-4 text-center text-sm text-terminal-green/70">
+            <p>© 2024 LLM.txt Generator | Optimized for LLM context windows</p>
+          </footer>
+        </div>
       </body>
     </html>
   )

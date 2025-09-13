@@ -64,7 +64,8 @@ async def create_generation(
             max_pages=request.max_pages,
             max_depth=request.max_depth,
             full_version=request.full_version,
-            respect_robots=request.respect_robots
+            respect_robots=request.respect_robots,
+            language=request.language
         )
         
         # Start job in background
@@ -99,6 +100,11 @@ async def get_job_status(job_id: str) -> JobStatusResponse:
             message=job.message,
             created_at=job.created_at,
             completed_at=job.completed_at,
+            current_phase=job.current_phase,
+            current_page_url=job.current_page_url,
+            pages_discovered=job.pages_discovered,
+            pages_processed=job.pages_processed,
+            processing_logs=job.processing_logs,
             pages_crawled=job.pages_crawled,
             total_size_kb=job.total_size_kb,
             llm_txt_url=job.llm_txt_url,

@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 560 960" role="img" aria-label="LLM‑TXT vertical pipeline in TX‑02 style">
+  <defs>
+    <style>
+      .stroke{stroke:currentColor;fill:none}
+      .thin{stroke-width:1}
+      .mid{stroke-width:2}
+      .bold{stroke-width:3}
+      .label{fill:currentColor;font-family:'Berkeley Mono','SF Mono','Fira Code','JetBrains Mono','Cascadia Code',ui-monospace,Menlo,Monaco,Consolas,'Liberation Mono',monospace;letter-spacing:.06em}
+      .t11{font-size:11px}
+      .t13{font-size:13px}
+    </style>
+    <pattern id="dots" x="0" y="0" width="6" height="6" patternUnits="userSpaceOnUse">
+      <circle cx="1" cy="1" r="1" fill="currentColor" opacity=".15" />
+    </pattern>
+  </defs>
+
+  <!-- frame -->
+  <rect x="24" y="24" width="512" height="912" rx="2" class="stroke bold"/>
+
+  <!-- corner ticks -->
+  <path class="stroke mid" d="M32 40h18M32 40v18M528 40h-18M528 40v18M32 920h18M32 920v-18M528 920h-18M528 920v-18"/>
+
+  <!-- title band -->
+  <rect x="120" y="56" width="320" height="28" class="stroke mid"/>
+  <text x="280" y="74" text-anchor="middle" class="label t13">LLM‑TXT • PIPELINE</text>
+
+  <!-- stack of boxes -->
+  <!-- helper function not used: manually stack with translate increments -->
+
+  <!-- 1. INPUT URL -->
+  <g transform="translate(92,110)">
+    <rect x="8" y="8" width="336" height="70" fill="url(#dots)"/>
+    <rect x="0" y="0" width="336" height="70" class="stroke mid"/>
+    <text x="168" y="22" text-anchor="middle" class="label t13">INPUT URL</text>
+    <text x="168" y="40" text-anchor="middle" class="label t11" opacity=".6">https://docs.example.com</text>
+    <text x="168" y="56" text-anchor="middle" class="label t11" opacity=".6">validate • normalize</text>
+  </g>
+
+  <text x="280" y="208" text-anchor="middle" class="label t13">↓</text>
+
+  <!-- 2. robots.txt -->
+  <g transform="translate(92,230)">
+    <rect x="8" y="8" width="336" height="64" fill="url(#dots)"/>
+    <rect x="0" y="0" width="336" height="64" class="stroke mid"/>
+    <text x="168" y="22" text-anchor="middle" class="label t13">robots.txt</text>
+    <text x="168" y="40" text-anchor="middle" class="label t11" opacity=".6">respect • crawl‑delay • permissions</text>
+  </g>
+
+  <text x="280" y="310" text-anchor="middle" class="label t13">↓</text>
+
+  <!-- 3. sitemap discovery -->
+  <g transform="translate(92,332)">
+    <rect x="8" y="8" width="336" height="64" fill="url(#dots)"/>
+    <rect x="0" y="0" width="336" height="64" class="stroke mid"/>
+    <text x="168" y="22" text-anchor="middle" class="label t13">sitemap discovery</text>
+    <text x="168" y="40" text-anchor="middle" class="label t11" opacity=".6">/sitemap.xml • links • dedupe</text>
+  </g>
+
+  <text x="280" y="412" text-anchor="middle" class="label t13">↓</text>
+
+  <!-- 4. async crawler -->
+  <g transform="translate(92,434)">
+    <rect x="8" y="8" width="336" height="84" fill="url(#dots)"/>
+    <rect x="0" y="0" width="336" height="84" class="stroke mid"/>
+    <text x="168" y="22" text-anchor="middle" class="label t13">ASYNC CRAWLER</text>
+    <text x="168" y="40" text-anchor="middle" class="label t11" opacity=".6">polite • rate‑limited</text>
+    <text x="168" y="58" text-anchor="middle" class="label t11" opacity=".6">progress</text>
+  </g>
+
+  <text x="280" y="536" text-anchor="middle" class="label t13">↓</text>
+
+  <!-- 5. extract + clean -->
+  <g transform="translate(92,558)">
+    <rect x="8" y="8" width="336" height="84" fill="url(#dots)"/>
+    <rect x="0" y="0" width="336" height="84" class="stroke mid"/>
+    <text x="168" y="22" text-anchor="middle" class="label t13">EXTRACT + CLEAN</text>
+    <text x="168" y="40" text-anchor="middle" class="label t11" opacity=".6">Markdown‑first • code preserved</text>
+    <text x="168" y="58" text-anchor="middle" class="label t11" opacity=".6">remove nav/boilerplate</text>
+  </g>
+
+  <text x="280" y="660" text-anchor="middle" class="label t13">↓</text>
+
+  <!-- 6. compose -->
+  <g transform="translate(92,682)">
+    <rect x="8" y="8" width="336" height="84" fill="url(#dots)"/>
+    <rect x="0" y="0" width="336" height="84" class="stroke mid"/>
+    <text x="168" y="22" text-anchor="middle" class="label t13">COMPOSE</text>
+    <text x="168" y="40" text-anchor="middle" class="label t11" opacity=".6">high‑signal first</text>
+    <text x="168" y="58" text-anchor="middle" class="label t11" opacity=".6">size budget • deterministic</text>
+  </g>
+
+  <text x="280" y="784" text-anchor="middle" class="label t13">↓</text>
+
+  <!-- 7. deliverables -->
+  <g transform="translate(92,806)">
+    <rect x="8" y="8" width="336" height="92" fill="url(#dots)"/>
+    <rect x="0" y="0" width="336" height="92" class="stroke mid"/>
+    <text x="168" y="24" text-anchor="middle" class="label t13">DELIVERABLES</text>
+    <g transform="translate(68,44)">
+      <rect x="0" y="0" width="84" height="28" class="stroke thin" rx="12" ry="12"/>
+      <text x="42" y="18" text-anchor="middle" class="label t11">llm.txt</text>
+    </g>
+    <g transform="translate(184,44)">
+      <rect x="0" y="0" width="120" height="28" class="stroke thin" rx="12" ry="12"/>
+      <text x="60" y="18" text-anchor="middle" class="label t11">llms‑full.txt</text>
+    </g>
+  </g>
+
+</svg>
+

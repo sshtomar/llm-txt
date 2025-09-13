@@ -1,0 +1,106 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Berkeley Mono font (optional, if licensed font files provided) */
+/* Try multiple local names to match various distributions */
+@font-face {
+  font-family: 'Berkeley Mono';
+  src:
+    local('Berkeley Mono'),
+    local('Berkeley Mono Regular'),
+    local('BerkeleyMono'),
+    local('BerkeleyMono-Regular'),
+    local('Berkeley Mono Trial'),
+    url('/fonts/BerkeleyMono-Variable.woff2') format('woff2');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+/* Optional static regular face fallback (if you have non-variable font) */
+@font-face {
+  font-family: 'Berkeley Mono';
+  src:
+    local('Berkeley Mono'),
+    local('Berkeley Mono Regular'),
+    local('BerkeleyMono-Regular'),
+    url('/fonts/BerkeleyMono-Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+/* Optional Trial OTF fallback (works if you drop the OTF into public/fonts) */
+@font-face {
+  font-family: 'Berkeley Mono';
+  src:
+    local('Berkeley Mono Trial'),
+    url('/fonts/BerkeleyMonoTrial-Regular.otf') format('opentype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  --bg: #ffffff;
+  --fg: #0b0b0c;
+  --panel: #f8f9fa;
+  --border: #e5e7eb;
+  --accent: #0f172a;
+}
+
+.dark {
+  --bg: #0b0b0c;
+  --fg: #eaeaea;
+  --panel: #111111;
+  --border: #222222;
+  /* Soothing dev-friendly accent (teal-500) */
+  --accent: #14b8a6;
+}
+
+html, body {
+  height: 100%;
+}
+
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: theme('fontFamily.mono');
+}
+
+/* Buttons */
+.btn { 
+  display: inline-flex; align-items: center; justify-content: center;
+  border: 1px solid var(--border);
+  background: var(--panel);
+  color: var(--fg);
+  transition: background-color .15s ease, color .15s ease, border-color .15s ease, box-shadow .15s ease;
+}
+.btn:focus { outline: none; box-shadow: 0 0 0 2px rgba(20,184,166,.35); }
+.btn:hover { background: var(--bg); }
+.btn:disabled { opacity: .55; cursor: not-allowed; }
+
+.btn-primary { border-color: var(--accent); color: var(--accent); }
+.btn-primary:hover { background: var(--bg); }
+
+
+/* Scrollbars */
+*::-webkit-scrollbar { width: 10px; height: 10px; }
+*::-webkit-scrollbar-track { background: var(--panel); }
+*::-webkit-scrollbar-thumb { background-color: var(--border); border-radius: 0; border: 2px solid var(--panel); }
+
+/* Terminal-like selection */
+::selection { background: rgba(20, 184, 166, 0.25); color: var(--fg); }
+
+/* ASCII progress bar font tightening */
+.ascii-mono { letter-spacing: 0.02em; }
+
+/* Value props card hover effect */
+.vp-card { transition: box-shadow .2s ease, transform .2s ease, border-color .2s ease; }
+.vp-card:hover { box-shadow: 0 6px 18px rgba(0,0,0,.12); transform: translateY(-1px); border-color: var(--accent); }
+
+/* Hero band with theme-aware background */
+.hero-band {
+  background: var(--panel);
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}

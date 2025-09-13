@@ -1,39 +1,42 @@
 'use client'
 
-import { useState } from 'react'
-import Link from 'next/link'
-import { FileText } from 'lucide-react'
-import { ThemeToggle } from './theme-toggle'
-import { CreditsDisplay } from './credits-display'
-import { UpgradeModal } from './upgrade-modal'
+import { useTheme } from './theme-provider'
 
 export function Navigation() {
-  const [showUpgradeModal, setShowUpgradeModal] = useState(false)
+  const { theme, toggleTheme } = useTheme()
 
   return (
-    <>
-      <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container flex h-16 items-center">
-          <div className="mr-8 flex items-center">
-            <Link href="/" className="flex items-center space-x-2">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-blue-500 to-cyan-500">
-                <FileText className="h-5 w-5 text-white" />
-              </div>
-              <span className="text-xl font-bold">LLM-TXT</span>
-            </Link>
-          </div>
-          
-          <div className="ml-auto flex items-center space-x-4">
-            <CreditsDisplay onUpgrade={() => setShowUpgradeModal(true)} />
-            <ThemeToggle />
-          </div>
+    <header className="border-b border-terminal-green/30 bg-terminal-darkBg">
+      <nav className="container mx-auto px-4 py-4 flex items-center justify-between">
+        <div className="flex items-center space-x-2">
+          <span className="text-2xl font-bold text-terminal-green">{'>'}_</span>
+          <h1 className="text-xl font-bold">LLM.txt Generator</h1>
         </div>
-      </header>
-
-      <UpgradeModal
-        open={showUpgradeModal}
-        onOpenChange={setShowUpgradeModal}
-      />
-    </>
+        
+        <div className="flex items-center space-x-6">
+          <a 
+            href="https://github.com/yourusername/llm-txt"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hover:text-terminal-cyan transition-colors"
+          >
+            GitHub
+          </a>
+          <a 
+            href="/docs"
+            className="hover:text-terminal-cyan transition-colors"
+          >
+            Docs
+          </a>
+          <button
+            onClick={toggleTheme}
+            className="px-3 py-1 border border-terminal-green hover:bg-terminal-green hover:text-black transition-colors"
+            aria-label="Toggle theme"
+          >
+            {theme === 'dark' ? '☀' : '☾'}
+          </button>
+        </div>
+      </nav>
+    </header>
   )
 }

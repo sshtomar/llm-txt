@@ -15,9 +15,12 @@ class Settings(BaseSettings):
     # Anthropic Configuration
     anthropic_api_key: Optional[str] = None
     
+    # Cohere Configuration
+    cohere_api_key: Optional[str] = None
+    
     # Crawler Configuration
-    max_pages: int = 100
-    max_depth: int = 3
+    max_pages: int = 150  # Increased for more comprehensive coverage
+    max_depth: int = 5  # Increased depth to capture deeper documentation
     max_kb: int = 500
     request_delay: float = 1.0
     user_agent: str = "llm-txt-generator/0.1.0 (+https://github.com/your-org/llm-txt)"
