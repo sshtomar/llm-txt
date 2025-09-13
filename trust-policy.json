@@ -1,6 +1,14 @@
 {
   "Version": "2012-10-17",
   "Statement": [
-    { "Effect": "Allow", "Principal": { "Service": "build.apprunner.amazonaws.com" }, "Action": "sts:AssumeRole" }
+    {
+      "Effect": "Allow",
+      "Principal": {"Federated": "arn:aws:iam::796973517930:oidc-provider/token.actions.githubusercontent.com"},
+      "Action": "sts:AssumeRoleWithWebIdentity",
+      "Condition": {
+        "StringEquals": {"token.actions.githubusercontent.com:aud": "sts.amazonaws.com"},
+        "StringLike": {"token.actions.githubusercontent.com:sub": "repo:sshtomar/llm-txt:*"}
+      }
+    }
   ]
 }

@@ -1,0 +1,25 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "ecr:GetAuthorizationToken",
+        "ecr:BatchCheckLayerAvailability",
+        "ecr:InitiateLayerUpload",
+        "ecr:UploadLayerPart",
+        "ecr:CompleteLayerUpload",
+        "ecr:PutImage",
+        "ecr:DescribeRepositories",
+        "ecr:CreateRepository",
+        "ecr:GetDownloadUrlForLayer"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Effect": "Allow",
+      "Action": ["apprunner:DescribeService", "apprunner:UpdateService"],
+      "Resource": "arn:aws:apprunner:us-east-1:796973517930:service/llm-txt-api/065754d32c444052ae509f0f972e7bf0"
+    }
+  ]
+}
