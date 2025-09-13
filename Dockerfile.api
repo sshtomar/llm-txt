@@ -1,0 +1,18 @@
+FROM mcr.microsoft.com/playwright/python:v1.40.0-jammy
+
+WORKDIR /app
+
+# Copy only what we need to build and run the API
+COPY pyproject.toml ./
+COPY llm_txt ./llm_txt
+
+# Install package (runtime deps only)
+RUN pip install --no-cache-dir --upgrade pip \
+    && pip install --no-cache-dir .
+
+ENV PORT=8000
+EXPOSE 8000
+
+# FastAPI app entry
+CMD ["uvicorn", "llm_txt.api:app", "--host", "0.0.0.0", "--port", "8000"]
+

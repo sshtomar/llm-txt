@@ -1,0 +1,16 @@
+venv/
+.venv/
+__pycache__/
+*.pyc
+.git/
+.gitignore
+.DS_Store
+node_modules/
+web_codex/.next/
+web_codex/node_modules/
+web_codex/.env.local
+tests/
+*.egg-info/
+dist/
+build/
+

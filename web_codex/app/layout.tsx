@@ -12,6 +12,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <head>
         <meta name="color-scheme" content="dark" />
         <link rel="preload" href="/fonts/BerkeleyMono-Variable.woff2" as="font" type="font/woff2" crossOrigin="anonymous" />
+        <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+        <meta name="theme-color" content="#0b0b0c" />
       </head>
       <body className="min-h-screen bg-[var(--bg)] text-[var(--fg)] font-mono">
         {children}

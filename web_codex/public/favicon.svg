@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <style>
+      .bg{fill:#0b0b0c}
+      .stroke{fill:none;stroke:#14b8a6;stroke-width:2}
+      .t{fill:#eaeaea;font-family:'Berkeley Mono','SF Mono','Fira Code','JetBrains Mono','Cascadia Code',ui-monospace,Menlo,Monaco,Consolas,'Liberation Mono',monospace;font-size:14px;letter-spacing:.04em}
+    </style>
+  </defs>
+  <!-- dark tile with teal border -->
+  <rect x="3" y="3" width="58" height="58" rx="8" class="bg"/>
+  <rect x="3" y="3" width="58" height="58" rx="8" class="stroke"/>
+
+  <!-- tiny bracket motif -->
+  <path d="M18 22h4M18 42h4M42 22h4M42 42h4" stroke="#14b8a6" stroke-width="2"/>
+
+  <!-- TXT monogram -->
+  <text class="t" x="32" y="35" text-anchor="middle">txt</text>
+</svg>
+

@@ -1,0 +1,24 @@
+{
+  "ServiceName": "llm-txt-api",
+  "SourceConfiguration": {
+    "AuthenticationConfiguration": { "AccessRoleArn": "arn:aws:iam::796973517930:role/AppRunnerECRAccessRole" },
+    "AutoDeploymentsEnabled": true,
+    "ImageRepository": {
+      "ImageIdentifier": "796973517930.dkr.ecr.us-east-1.amazonaws.com/llm-txt-api:latest",
+      "ImageRepositoryType": "ECR",
+      "ImageConfiguration": {
+        "Port": "8000",
+        "RuntimeEnvironmentSecrets": { "COHERE_API_KEY": "arn:aws:secretsmanager:us-east-1:796973517930:secret:cohere-api-key-xN9cf3" },
+        "RuntimeEnvironmentVariables": {
+          "MAX_PAGES": "100",
+          "MAX_DEPTH": "3",
+          "MAX_KB": "500",
+          "REQUEST_DELAY": "1.0",
+          "USER_AGENT": "llm-txt-generator/0.1.0"
+        }
+      }
+    }
+  },
+  "InstanceConfiguration": { "Cpu": "1 vCPU", "Memory": "2 GB", "InstanceRoleArn": "arn:aws:iam::796973517930:role/AppRunnerInstanceRole" },
+  "HealthCheckConfiguration": { "Protocol": "HTTP", "Path": "/health", "Interval": 5, "Timeout": 2, "HealthyThreshold": 1, "UnhealthyThreshold": 3 }
+}

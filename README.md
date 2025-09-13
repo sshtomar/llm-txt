@@ -5,7 +5,7 @@ A tool that crawls documentation websites and generates LLM-friendly summaries i
 ## Features
 
 - 🕷️ **Smart Crawling**: Discovers URLs via sitemaps and crawls politely
-- 🤖 **AI-Powered**: Uses Anthropic Claude for intelligent summarization
+- 🤖 **AI-Powered**: Uses Cohere for intelligent summarization
 - 📏 **Size Management**: Keeps outputs within configurable size limits
 - 🚫 **Respectful**: Honors robots.txt and implements crawl delays
 - 🔄 **API & CLI**: Both REST API and command-line interfaces
@@ -23,9 +23,9 @@ cd llm-txt
 # Install dependencies
 make install
 
-# Copy environment file and add your Anthropic API key
+# Copy environment file and add your Cohere API key
 cp .env.example .env
-# Edit .env and add your ANTHROPIC_API_KEY
+# Edit .env and add your COHERE_API_KEY
 ```
 
 ### CLI Usage
@@ -75,7 +75,7 @@ Set these environment variables in `.env`:
 
 ```bash
 # Required
-ANTHROPIC_API_KEY=your_api_key_here
+COHERE_API_KEY=your_api_key_here
 
 # Optional (with defaults)
 MAX_PAGES=100
