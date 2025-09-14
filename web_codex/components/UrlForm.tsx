@@ -17,6 +17,10 @@ export default function UrlForm({ onCreated, size = 'md' }: Props) {
   const [advanced, setAdvanced] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [genCount, setGenCount] = useState<number>(0)
+  // Toggle to re-enable free trial limits
+  const ENABLE_LIMIT = false
+  const FREE_LIMIT = 3
   const [opts, setOpts] = useState<Required<Pick<GenerationRequest, 'max_pages' | 'max_depth' | 'full_version' | 'respect_robots'>>>({
     max_pages: 150,
     max_depth: 5,
@@ -29,15 +33,51 @@ export default function UrlForm({ onCreated, size = 'md' }: Props) {
 
   useEffect(() => { inputRef.current?.focus() }, [])
 
+  // Load generation count from localStorage
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem('llm-txt:gen-count')
+      setGenCount(raw ? Math.max(0, parseInt(raw, 10)) : 0)
+    } catch {}
+  }, [])
+  useEffect(() => {
+    const sync = () => {
+      try {
+        const raw = localStorage.getItem('llm-txt:gen-count')
+        setGenCount(raw ? Math.max(0, parseInt(raw, 10)) : 0)
+      } catch {}
+    }
+    window.addEventListener('storage', sync)
+    window.addEventListener('llm-txt:gen-used', sync as EventListener)
+    return () => {
+      window.removeEventListener('storage', sync)
+      window.removeEventListener('llm-txt:gen-used', sync as EventListener)
+    }
+  }, [])
+
   async function onSubmit(e?: React.FormEvent) {
     e?.preventDefault()
     setError(null)
+    // Enforce free tier limit
+    if (ENABLE_LIMIT && genCount >= FREE_LIMIT) {
+      setError('Free limit reached (3 generations). Upgrade to continue.')
+      return
+    }
     if (!isValidUrl(url)) { setError('Please enter a valid URL'); return }
     setLoading(true)
-    try {
-      const payload: GenerationRequest = { url, ...opts }
-      const res = await createGeneration(payload)
-      onCreated(res)
+      try {
+        const payload: GenerationRequest = { url, ...opts }
+        const res = await createGeneration(payload)
+        onCreated(res)
+      // Increment generation count on successful creation (if limiting enabled)
+      if (ENABLE_LIMIT) {
+        try {
+          const next = genCount + 1
+          localStorage.setItem('llm-txt:gen-count', String(next))
+          setGenCount(next)
+          window.dispatchEvent(new Event('llm-txt:gen-used'))
+        } catch {}
+      }
     } catch (e: any) {
       setError(e?.message || 'Failed to create job')
     } finally {
@@ -57,6 +97,9 @@ export default function UrlForm({ onCreated, size = 'md' }: Props) {
 
   const isLg = size === 'lg'
 
+  const limitReached = ENABLE_LIMIT && genCount >= FREE_LIMIT
+  const trialsLeft = Math.max(0, FREE_LIMIT - genCount)
+
   return (
     <form onSubmit={onSubmit} className="space-y-3">
       <label className={`block ${isLg ? 'text-base' : 'text-sm'} opacity-80`}>Documentation URL</label>
@@ -72,12 +115,20 @@ export default function UrlForm({ onCreated, size = 'md' }: Props) {
       />
       {error && <p className="text-terminal-red text-sm">{error}</p>}
       <div className="flex items-center gap-3">
-        <button disabled={loading} className={`btn btn-primary ${isLg ? 'px-5 py-3 text-base' : 'px-4 py-2 text-sm'}`}
+        <button disabled={loading || limitReached} className={`btn btn-primary ${isLg ? 'px-5 py-3 text-base' : 'px-4 py-2 text-sm'}`}
           data-cta>
-          {loading ? 'Starting…' : 'Generate llms.txt'}
+          {limitReached ? 'Upgrade to continue' : (loading ? 'Starting…' : 'Generate llms.txt')}
         </button>
         <button type="button" onClick={()=>setAdvanced(v=>!v)} className="text-sm underline">{advanced ? 'Hide' : 'Show'} advanced options</button>
       </div>
+      <div className="text-xs opacity-70">Free trials left: {trialsLeft} / {FREE_LIMIT}</div>
+      {limitReached && (
+        <div className="text-sm opacity-80 border border-terminal-border p-3 bg-terminal-panel">
+          You have reached the free limit of 3 generations. Please upgrade to continue.
+          {' '}<a className="underline" href="https://github.com/sshtomar/llm-txt" target="_blank" rel="noreferrer">Learn more</a>
+        </div>
+      )}
+      {/* Trials indicator removed per request */}
       {/* Inline explainer removed per request */}
 
       {advanced && (

@@ -8,16 +8,7 @@ export default function Header() {
           <div className="h-6 w-1.5 bg-terminal-teal" />
           <h1 className="text-xl tracking-tight">llm.txt generator</h1>
         </div>
-        <nav className="flex items-center gap-4 text-sm">
-          <a
-            className="hover:underline"
-            href="https://github.com/sshtomar/llm-txt"
-            target="_blank"
-            rel="noreferrer noopener"
-          >
-            GitHub
-          </a>
-        </nav>
+        {/* Nav removed per request */}
       </div>
     </header>
   )

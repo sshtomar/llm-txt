@@ -30,7 +30,31 @@ const COOLDOWN_MS = 10 * 60 * 1000 // 10 minutes
 
 export default function InteractiveDemo() {
   const [runningCount, setRunningCount] = useState(0)
+  const ENABLE_LIMIT = false
+  const FREE_LIMIT = 3
+  const [trialsLeft, setTrialsLeft] = useState<number>(() => {
+    if (!ENABLE_LIMIT) return FREE_LIMIT
+    try { const raw = localStorage.getItem('llm-txt:gen-count'); const c = raw ? parseInt(raw, 10) : 0; return Math.max(0, FREE_LIMIT - c) } catch { return FREE_LIMIT }
+  })
   const allowAnother = runningCount < 2
+
+  // keep trials indicator in sync
+  function syncTrials() {
+    if (!ENABLE_LIMIT) { setTrialsLeft(FREE_LIMIT); return }
+    try { const raw = localStorage.getItem('llm-txt:gen-count'); const c = raw ? parseInt(raw, 10) : 0; setTrialsLeft(Math.max(0, FREE_LIMIT - c)) } catch { setTrialsLeft(FREE_LIMIT) }
+  }
+  
+  // listen for updates from other components
+  // note: 'storage' doesn't fire in same document; we also listen to a custom event
+  React.useEffect(() => {
+    const handler = () => syncTrials()
+    window.addEventListener('llm-txt:gen-used', handler as EventListener)
+    window.addEventListener('storage', handler)
+    return () => {
+      window.removeEventListener('llm-txt:gen-used', handler as EventListener)
+      window.removeEventListener('storage', handler)
+    }
+  }, [])
 
   return (
     <section className="mx-auto max-w-6xl px-6 pt-4 pb-8">
@@ -79,12 +103,32 @@ function DemoCard({ preset, canStart, onRunningChange }: { preset: Preset; canSt
 
   async function start() {
     if (disabled) return
+    // Free tier limit shared with main form
+    if (ENABLE_LIMIT) {
+      try {
+        const raw = localStorage.getItem('llm-txt:gen-count')
+        const count = raw ? Math.max(0, parseInt(raw, 10)) : 0
+        if (count >= FREE_LIMIT) {
+          save({ status: 'failed', error: 'Free limit reached. Upgrade to continue.' })
+          return
+        }
+      } catch {}
+    }
     save({ status: 'starting', lastRunAt: Date.now() })
     onRunningChange(1)
     try {
       const res = await createGeneration({ url: preset.url, full_version: true, language: 'en', max_pages: 80, max_depth: 3, respect_robots: true })
       save({ ...state, status: 'running', jobId: res.job_id, progress: 0 })
       poll(res.job_id)
+      // Increment generation count on successful creation (if limiting enabled)
+      if (ENABLE_LIMIT) {
+        try {
+          const raw = localStorage.getItem('llm-txt:gen-count')
+          const count = raw ? Math.max(0, parseInt(raw, 10)) : 0
+          localStorage.setItem('llm-txt:gen-count', String(count + 1))
+          window.dispatchEvent(new Event('llm-txt:gen-used'))
+        } catch {}
+      }
     } catch (e: any) {
       onRunningChange(-1)
       save({ status: 'failed', error: e?.message || 'Failed to start' })

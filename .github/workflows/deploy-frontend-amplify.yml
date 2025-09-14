@@ -1,0 +1,55 @@
+name: Deploy Frontend (Amplify)
+
+on:
+  push:
+    branches: [ "main" ]
+    paths:
+      - 'web_codex/**'
+      - '.github/workflows/deploy-frontend-amplify.yml'
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  AWS_REGION: ${{ vars.AWS_REGION || 'us-east-1' }}
+  AMPLIFY_APP_ID: ${{ secrets.AMPLIFY_APP_ID }}
+  AMPLIFY_BRANCH: ${{ vars.AMPLIFY_BRANCH || 'main' }}
+  AWS_ROLE_TO_ASSUME: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+  AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+  AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC)
+        if: ${{ env.AWS_ROLE_TO_ASSUME != '' }}
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ env.AWS_ROLE_TO_ASSUME }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Configure AWS credentials (access keys)
+        if: ${{ env.AWS_ROLE_TO_ASSUME == '' && env.AWS_ACCESS_KEY_ID != '' && env.AWS_SECRET_ACCESS_KEY != '' }}
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ env.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ env.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Trigger Amplify build
+        run: |
+          if [ -z "${AMPLIFY_APP_ID}" ]; then
+            echo "Set AMPLIFY_APP_ID secret to your Amplify app id"; exit 1; fi
+          echo "Starting Amplify job for app ${AMPLIFY_APP_ID}, branch ${AMPLIFY_BRANCH}"
+          aws amplify start-job \
+            --app-id "${AMPLIFY_APP_ID}" \
+            --branch-name "${AMPLIFY_BRANCH}" \
+            --job-type RELEASE \
+            --job-reason "GitHub Actions deploy"
+
