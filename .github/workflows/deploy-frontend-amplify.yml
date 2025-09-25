@@ -1,11 +1,12 @@
 name: Deploy Frontend (Amplify)
 
 on:
-  push:
-    branches: [ "main" ]
-    paths:
-      - 'web_codex/**'
-      - '.github/workflows/deploy-frontend-amplify.yml'
+  # Disabled until Amplify secrets are configured
+  # push:
+  #   branches: [ "main" ]
+  #   paths:
+  #     - 'web_codex/**'
+  #     - '.github/workflows/deploy-frontend-amplify.yml'
   workflow_dispatch:
 
 permissions:
