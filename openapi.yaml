@@ -1,0 +1,356 @@
+openapi: 3.0.3
+info:
+  title: LLM-TXT Generator API
+  description: Generate LLM-friendly summaries from documentation URLs
+  version: 0.1.0
+  contact:
+    name: LLM-TXT Support
+    email: support@example.com
+
+servers:
+  - url: https://hdinqg7vmm.us-east-1.awsapprunner.com
+    description: Production server (AWS App Runner)
+  - url: http://localhost:8000
+    description: Local development server
+
+paths:
+  /health:
+    get:
+      summary: Health Check
+      description: Check if the service is healthy and running
+      operationId: healthCheck
+      tags:
+        - System
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+
+  /v1/generations:
+    post:
+      summary: Create Generation Job
+      description: Start a new job to generate llm.txt from a documentation URL
+      operationId: createGeneration
+      tags:
+        - Generation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GenerationRequest'
+      responses:
+        '202':
+          description: Job created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GenerationResponse'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /v1/generations/{job_id}:
+    get:
+      summary: Get Job Status
+      description: Get the current status and progress of a generation job
+      operationId: getJobStatus
+      tags:
+        - Generation
+      parameters:
+        - name: job_id
+          in: path
+          required: true
+          description: Unique job identifier
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Job status retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobStatusResponse'
+        '404':
+          description: Job not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    delete:
+      summary: Cancel Job
+      description: Cancel a running generation job
+      operationId: cancelJob
+      tags:
+        - Generation
+      parameters:
+        - name: job_id
+          in: path
+          required: true
+          description: Unique job identifier
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Job cancelled successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Job cancelled successfully
+        '404':
+          description: Job not found or cannot be cancelled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /v1/generations/{job_id}/download/{file_type}:
+    get:
+      summary: Download Generated File
+      description: Download the generated llm.txt or llms-full.txt file
+      operationId: downloadResult
+      tags:
+        - Generation
+      parameters:
+        - name: job_id
+          in: path
+          required: true
+          description: Unique job identifier
+          schema:
+            type: string
+            format: uuid
+        - name: file_type
+          in: path
+          required: true
+          description: Type of file to download
+          schema:
+            type: string
+            enum: [llm.txt, llms-full.txt]
+      responses:
+        '200':
+          description: File content retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  content:
+                    type: string
+                    description: The text content of the generated file
+        '400':
+          description: Invalid file type
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: File not found or job not completed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  schemas:
+    GenerationRequest:
+      type: object
+      required:
+        - url
+      properties:
+        url:
+          type: string
+          format: uri
+          description: URL of the documentation site to crawl
+          example: https://docs.python.org
+        max_pages:
+          type: integer
+          minimum: 1
+          maximum: 1000
+          default: 150
+          description: Maximum pages to crawl
+        max_depth:
+          type: integer
+          minimum: 1
+          maximum: 10
+          default: 5
+          description: Maximum crawl depth
+        full_version:
+          type: boolean
+          default: false
+          description: Generate both llm.txt and llms-full.txt
+        respect_robots:
+          type: boolean
+          default: true
+          description: Respect robots.txt directives
+        language:
+          type: string
+          default: en
+          description: Preferred language (e.g., 'en'). Non-matching locale pages are skipped
+
+    GenerationResponse:
+      type: object
+      required:
+        - job_id
+        - status
+        - message
+      properties:
+        job_id:
+          type: string
+          format: uuid
+          description: Unique job identifier
+        status:
+          $ref: '#/components/schemas/JobStatus'
+        message:
+          type: string
+          description: Status message
+
+    JobStatusResponse:
+      type: object
+      required:
+        - job_id
+        - status
+        - progress
+        - message
+        - created_at
+      properties:
+        job_id:
+          type: string
+          format: uuid
+          description: Job identifier
+        status:
+          $ref: '#/components/schemas/JobStatus'
+        progress:
+          type: number
+          minimum: 0
+          maximum: 1
+          description: Progress percentage (0-1)
+        message:
+          type: string
+          description: Status or error message
+        created_at:
+          type: number
+          format: double
+          description: Job creation timestamp
+        completed_at:
+          type: number
+          format: double
+          nullable: true
+          description: Job completion timestamp
+        current_phase:
+          type: string
+          default: initializing
+          description: Current processing phase
+        current_page_url:
+          type: string
+          nullable: true
+          description: URL of page currently being processed
+        pages_discovered:
+          type: integer
+          default: 0
+          description: Total pages discovered
+        pages_processed:
+          type: integer
+          default: 0
+          description: Pages processed so far
+        processing_logs:
+          type: array
+          items:
+            type: string
+          description: Processing log entries
+        pages_crawled:
+          type: integer
+          nullable: true
+          description: Number of pages successfully crawled
+        total_size_kb:
+          type: number
+          nullable: true
+          description: Total size of generated content in KB
+        llm_txt_url:
+          type: string
+          nullable: true
+          description: Download URL for llm.txt
+        llms_full_txt_url:
+          type: string
+          nullable: true
+          description: Download URL for llms-full.txt
+
+    HealthResponse:
+      type: object
+      required:
+        - status
+        - version
+        - timestamp
+      properties:
+        status:
+          type: string
+          default: healthy
+          description: Service health status
+        version:
+          type: string
+          description: Service version
+        timestamp:
+          type: number
+          format: double
+          description: Response timestamp
+
+    JobStatus:
+      type: string
+      enum:
+        - pending
+        - running
+        - completed
+        - failed
+        - cancelled
+      description: Status of a generation job
+
+    ErrorResponse:
+      type: object
+      required:
+        - detail
+      properties:
+        detail:
+          type: string
+          description: Error message
+
+tags:
+  - name: System
+    description: System health and monitoring endpoints
+  - name: Generation
+    description: LLM text generation operations

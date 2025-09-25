@@ -48,9 +48,14 @@ class Job:
     llms_full_txt_content: Optional[str] = None
     llm_txt_url: Optional[str] = None
     llms_full_txt_url: Optional[str] = None
-    
+
+    # Additional fields for S3 persistence
+    llm_txt: Optional[str] = None  # Store the actual content
+    llms_full_txt: Optional[str] = None  # Store the actual content
+
     # Error info
     error_message: Optional[str] = None
+    error: Optional[str] = None  # Additional error field for S3 storage
     
     def set_status(self, status: JobStatus, message: str = "") -> None:
         """Update job status and message."""

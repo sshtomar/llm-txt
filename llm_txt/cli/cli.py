@@ -95,7 +95,7 @@ async def _generate_async(
         click.echo(f"Crawling with max_pages={max_pages}, max_depth={max_depth}")
         
         # Crawl the site
-        crawl_result = crawler.crawl(url)
+        crawl_result = await crawler.crawl(url)
         
         if not crawl_result.pages:
             click.echo("❌ No pages could be crawled. Check the URL and try again.")

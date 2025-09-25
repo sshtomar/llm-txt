@@ -79,6 +79,7 @@ class WebCrawler:
         urls_to_crawl = self._organize_urls_by_depth(start_url, discovered_urls)
         
         # Crawl pages
+        start_time = time.time()
         pages = []
         failed_urls = []
         blocked_urls = []
@@ -110,7 +111,7 @@ class WebCrawler:
                     logger.warning(f"Failed to crawl: {url}")
                 
                 # Respect crawl delay
-                await self._respect_crawl_delay(url)
+                self._respect_crawl_delay(url)
         
         duration = time.time() - start_time
         
@@ -169,66 +170,69 @@ class WebCrawler:
         
         return any(path_lower.endswith(ext) for ext in non_html_extensions)
     
-    def _fetch_page(self, url: str, depth: int) -> Optional[PageContent]:
+    async def _fetch_page(self, url: str, depth: int) -> Optional[PageContent]:
         """Fetch and extract content from a single page."""
         try:
-            response = self.session.get(
+            async with self.session.get(
                 url,
                 timeout=self.config.timeout,
                 allow_redirects=self.config.follow_redirects
-            )
-            response.raise_for_status()
+            ) as response:
+                response.raise_for_status()
+                
+                # Check content type
+                content_type = response.headers.get('Content-Type', '').lower()
+                if 'text/html' not in content_type:
+                    logger.debug(f"Skipping non-HTML content: {url} ({content_type})")
+                    return None
+                
+                # Read content
+                content = await response.read()
+                
+                # Parse HTML
+                soup = BeautifulSoup(content, 'lxml')
+                
+                # Extract title
+                title_elem = soup.find('title')
+                title = title_elem.get_text().strip() if title_elem else ""
+                
+                # Remove unwanted elements
+                self._clean_soup(soup)
+                
+                # Extract main content
+                content_html = self._extract_main_content(soup)
+                
+                # Convert to markdown
+                markdown = self.html2text.handle(str(content_html)).strip()
+                
+                # Extract plain text for content
+                content_text = soup.get_text(separator=' ', strip=True)
+                
+                # Find links
+                links = self._extract_links(soup, url)
+                
+                # Create metadata
+                metadata = {
+                    'word_count': len(content_text.split()),
+                    'char_count': len(content_text),
+                    'markdown_length': len(markdown),
+                    'final_url': str(response.url)
+                }
+                
+                return PageContent(
+                    url=url,
+                    title=title,
+                    content=content_text,
+                    markdown=markdown,
+                    depth=depth,
+                    timestamp=time.time(),
+                    status_code=response.status,
+                    content_type=content_type,
+                    links=links,
+                    metadata=metadata
+                )
             
-            # Check content type
-            content_type = response.headers.get('Content-Type', '').lower()
-            if 'text/html' not in content_type:
-                logger.debug(f"Skipping non-HTML content: {url} ({content_type})")
-                return None
-            
-            # Parse HTML
-            soup = BeautifulSoup(response.content, 'lxml')
-            
-            # Extract title
-            title_elem = soup.find('title')
-            title = title_elem.get_text().strip() if title_elem else ""
-            
-            # Remove unwanted elements
-            self._clean_soup(soup)
-            
-            # Extract main content
-            content_html = self._extract_main_content(soup)
-            
-            # Convert to markdown
-            markdown = self.html2text.handle(str(content_html)).strip()
-            
-            # Extract plain text for content
-            content_text = soup.get_text(separator=' ', strip=True)
-            
-            # Find links
-            links = self._extract_links(soup, url)
-            
-            # Create metadata
-            metadata = {
-                'word_count': len(content_text.split()),
-                'char_count': len(content_text),
-                'markdown_length': len(markdown),
-                'final_url': response.url
-            }
-            
-            return PageContent(
-                url=url,
-                title=title,
-                content=content_text,
-                markdown=markdown,
-                depth=depth,
-                timestamp=time.time(),
-                status_code=response.status_code,
-                content_type=content_type,
-                links=links,
-                metadata=metadata
-            )
-            
-        except RequestException as e:
+        except (ClientError, Exception) as e:
             logger.warning(f"Network error fetching {url}: {e}")
             return None
         except Exception as e:

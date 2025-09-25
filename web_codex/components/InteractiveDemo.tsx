@@ -1,5 +1,5 @@
 "use client"
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { createGeneration, downloadFile, getJobStatus } from '@/api/client'
 import { asciiProgress, prettyBytes } from '@/utils/format'
 
@@ -30,7 +30,7 @@ const COOLDOWN_MS = 10 * 60 * 1000 // 10 minutes
 
 export default function InteractiveDemo() {
   const [runningCount, setRunningCount] = useState(0)
-  const ENABLE_LIMIT = false
+  const ENABLE_LIMIT = true
   const FREE_LIMIT = 3
   const [trialsLeft, setTrialsLeft] = useState<number>(() => {
     if (!ENABLE_LIMIT) return FREE_LIMIT
@@ -46,7 +46,7 @@ export default function InteractiveDemo() {
   
   // listen for updates from other components
   // note: 'storage' doesn't fire in same document; we also listen to a custom event
-  React.useEffect(() => {
+  useEffect(() => {
     const handler = () => syncTrials()
     window.addEventListener('llm-txt:gen-used', handler as EventListener)
     window.addEventListener('storage', handler)

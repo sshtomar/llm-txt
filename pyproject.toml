@@ -24,7 +24,9 @@ dependencies = [
     "playwright>=1.40.0",
     "aiohttp>=3.8.0",
     "python-dotenv>=1.0.0",
-    "click>=8.0.0"
+    "click>=8.0.0",
+    "mcp>=0.1.0",
+    "aioboto3>=12.0.0"
 ]
 
 [project.optional-dependencies]
@@ -59,3 +61,5 @@ packages = ["llm_txt"]
 
 [project.scripts]
 llm-txt = "llm_txt.cli:main"
+llmxt = "llm_txt.cli.llmxt:main"
+llm-txt-mcp = "llm_txt.mcp.server:main"

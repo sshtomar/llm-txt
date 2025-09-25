@@ -2,6 +2,37 @@
 
 This document is a concise guide for contributors to llm-txt. It covers structure, workflows, and expectations so changes remain consistent and easy to review.
 
+## CLAUDE.md File
+The CLAUDE.md file provides hierarchical and updatable instruction management across repositories and users. This file helps Claude understand user preferences and project-specific requirements.
+
+### User Preferences Section
+When creating a CLAUDE.md file, include a `# User Preferences` section that captures:
+- User's experience level (e.g., product designer with little coding experience)
+- Need for detailed explanations vs. concise responses
+- Preference for incremental changes over large modifications
+- Learning goals and desire for educational context
+- Visual signal preferences (⚠️ for large changes, 🔴 for high-risk modifications)
+
+### Learning Mode Guidelines
+I would benefit most from an explanation style in which you frequently pause to confirm, via asking me test questions, that I've understood your explanations so far. Particularly helpful are test questions related to simple, explicit examples. When you pause and ask me a test question, do not continue the explanation until I have answered the questions to your satisfaction. I.e. do not keep generating the explanation, actually wait for me to respond first. Thanks!
+
+For users in learning mode, the CLAUDE.md should specify:
+- Providing educational context and explanations for complex topics
+- Breaking down changes into digestible parts
+- Explaining reasoning process and why things work
+- Adding verbose explanations when teaching new concepts
+- Step-by-step breakdowns with additional comments
+- Warnings for auto-accepting larger or complex code changes
+- Clear visual signals for different risk levels
+- Pausing for confirmation before significant modifications
+
+### Benefits of CLAUDE.md
+- **Hierarchical Structure**: Instructions cascade from user-level to project-level
+- **Consistency**: Maintains consistent interaction style across sessions
+- **Customization**: Tailors Claude's responses to user expertise and preferences
+- **Safety**: Adds appropriate warnings and checkpoints for riskier changes
+- **Education**: Facilitates learning through detailed explanations when needed
+
 ## Project Structure & Module Organization
 - `llm_txt/` — Python package
   - `api/` FastAPI app (`llm_txt.api:app`)

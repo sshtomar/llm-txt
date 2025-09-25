@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "llm-txt": {
+      "command": "llm-txt-mcp",
+      "env": {
+        "LLM_TXT_API_BASE_URL": "https://hdinqg7vmm.us-east-1.awsapprunner.com"
+      }
+    }
+  }
+}
+

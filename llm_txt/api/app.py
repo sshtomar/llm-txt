@@ -12,8 +12,15 @@ from ..worker.job_manager import JobManager
 from .models import GenerationRequest, GenerationResponse, JobStatusResponse, HealthResponse
 from ..worker.models import JobStatus
 from .. import __version__
+from .middleware import TimeoutMiddleware, RetryMiddleware, CircuitBreakerMiddleware
 
 logger = logging.getLogger(__name__)
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -23,6 +30,11 @@ app = FastAPI(
     docs_url="/docs",
     redoc_url="/redoc"
 )
+
+# Add reliability middleware (order matters - outermost first)
+app.add_middleware(CircuitBreakerMiddleware, failure_threshold=10, timeout=30)
+app.add_middleware(RetryMiddleware)
+app.add_middleware(TimeoutMiddleware, timeout=60)
 
 # Add CORS middleware
 app.add_middleware(
@@ -37,9 +49,24 @@ app.add_middleware(
 job_manager = JobManager()
 
 
+@app.on_event("startup")
+async def startup_event():
+    """Initialize resources on startup."""
+    logger.info(f"Starting LLM-TXT API v{__version__}")
+    logger.info("Warming up service...")
+    # Pre-warm any connections or resources here if needed
+
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    """Clean up resources on shutdown."""
+    logger.info("Shutting down LLM-TXT API")
+    # Clean up any resources here if needed
+
+
 @app.get("/health", response_model=HealthResponse)
 async def health_check() -> HealthResponse:
-    """Health check endpoint."""
+    """Health check endpoint with quick response."""
     return HealthResponse(
         status="healthy",
         version=__version__,

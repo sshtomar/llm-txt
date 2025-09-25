@@ -1,0 +1,44 @@
+version: 1.0
+runtime: python3
+build:
+  commands:
+    build:
+      - pip install --upgrade pip
+      - pip install .
+
+run:
+  runtime-version: 3.12
+  command: uvicorn llm_txt.api.app:app --host 0.0.0.0 --port 8000 --workers 4 --loop uvloop --timeout-keep-alive 75
+  network:
+    port: 8000
+    env: PORT
+  env:
+    - name: PYTHONUNBUFFERED
+      value: "1"
+    - name: LOG_LEVEL
+      value: "INFO"
+    - name: UVICORN_WORKERS
+      value: "4"
+    - name: WEB_CONCURRENCY
+      value: "4"
+
+# Health check configuration for better reliability
+health_check:
+  path: /health
+  protocol: HTTP
+  interval: 10  # Check every 10 seconds instead of 5
+  timeout: 5    # Allow 5 seconds for response instead of 2
+  healthy_threshold: 2
+  unhealthy_threshold: 5  # Allow more failures before marking unhealthy
+
+# Auto-scaling configuration for better availability
+auto_scaling_configuration:
+  max_concurrency: 80  # Lower from 100 to prevent overload
+  min_size: 2          # Keep minimum 2 instances always running
+  max_size: 10         # Scale up to 10 instances
+
+# Instance configuration
+instance_configuration:
+  cpu: 1 vCPU
+  memory: 2 GB
+  instance_role_arn: arn:aws:iam::796973517930:role/AppRunnerInstanceRole

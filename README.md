@@ -117,3 +117,55 @@ make dev
 ## License
 
 MIT License - see LICENSE file for details.
+
+## MCP Server (IDE Integration)
+
+Expose llm.txt generation to MCP-capable IDEs/tools (Cursor, Claude Code, Codex) via a thin MCP server that calls this repo’s FastAPI API.
+
+- Install: `make install` (adds the `llm-txt-mcp` console script)
+- Env vars (optional):
+  - `LLM_TXT_API_BASE_URL` (default: `http://localhost:8000`)
+  - `LLM_TXT_API_TOKEN` (optional Bearer token)
+  - `LLM_TXT_API_TIMEOUT` (default: `180` seconds)
+
+### Configure MCP clients
+
+- Cursor: Settings → MCP Servers → add a server with command `llm-txt-mcp` and set env vars.
+- Claude Desktop (`mcp.json` example):
+
+```
+{
+  "mcpServers": {
+    "llm-txt": {
+      "command": "llm-txt-mcp",
+      "env": {
+        "LLM_TXT_API_BASE_URL": "http://localhost:8000"
+      }
+    }
+  }
+}
+```
+
+Sample config files you can copy:
+- `configs/mcp/claude.mcp.json`
+- `configs/mcp/cursor.mcp.json`
+- `configs/mcp/codex.mcp.json`
+
+### Codex CLI
+
+- Project-level config file added: `.codex/mcp.json`
+  - Uses absolute command to your venv: `/Users/explorer/llm-txt/venv/bin/llm-txt-mcp`
+  - Edit if your path differs.
+- Start backend: `source venv/bin/activate && make dev`
+- In Codex, the MCP server `llm-txt` should appear with tool `generate_llms_txt`.
+  - Example request (from Codex prompt):
+    - “Use tool llm-txt.generate_llms_txt with url=https://docs.example.com, full=true, max_pages=50.”
+
+### Tools exposed
+
+- `generate_llms_txt(url, full?, max_pages?, max_depth?, max_kb?, respect_robots?, language?, wait_seconds?)`
+  - Starts a job (`POST /v1/generations`), polls status, downloads results, and returns content and metadata.
+- `get_generation_status(job_id)`
+- `cancel_generation(job_id)`
+
+Backend remains unchanged; this MCP server is just a translation layer.

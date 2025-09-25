@@ -4,10 +4,20 @@ import os
 import logging
 import re
 import hashlib
-from typing import List, Optional, Set
+from typing import Dict, List, Optional, Set, Tuple, Union
 import cohere
 from dotenv import load_dotenv
-from ..crawler.models import PageContent
+
+try:
+    from ..crawler.models import PageContent
+except ImportError:
+    # Support both PageContent and Page classes
+    PageContent = None
+
+try:
+    from ..ingest.ingestor import Page
+except ImportError:
+    Page = None
 
 # Load environment variables
 load_dotenv()
@@ -17,18 +27,88 @@ logger = logging.getLogger(__name__)
 
 class LLMTxtComposer:
     """Composes llm.txt content from crawled pages using Cohere."""
-    
-    def __init__(self, api_key: Optional[str] = None, max_kb: int = 500) -> None:
+
+    def __init__(
+        self,
+        api_key: Optional[str] = None,
+        max_kb: int = 500,
+        priority_keywords: Optional[List[str]] = None,
+        blocked_paths: Optional[List[str]] = None,
+        redact_patterns: Optional[List[str]] = None
+    ) -> None:
         self.api_key = api_key or os.getenv("COHERE_API_KEY")
         self.max_kb = max_kb
+        self.priority_keywords = priority_keywords or []
+        self.blocked_paths = blocked_paths or []
+        self.redact_patterns = redact_patterns or []
         self.client = None
-        
+
         if self.api_key:
             self.client = cohere.ClientV2(api_key=self.api_key)
         else:
             logger.warning("No Cohere API key provided. Composer will use basic text processing.")
     
-    async def compose_llm_txt(self, pages: List[PageContent]) -> str:
+    async def compose_with_budget(self, pages: Union[List[PageContent], List['Page']]) -> Tuple[str, Dict]:
+        """
+        Compose llm.txt with budget tracking.
+
+        Returns:
+            Tuple of (content, trim_report)
+        """
+        if not pages:
+            return "", {"trimmed": [], "blocked_content": False}
+
+        # Support both PageContent and Page objects
+        sorted_pages = self._prioritize_pages(pages)
+
+        content_parts = []
+        total_size = 0
+        max_size_bytes = self.max_kb * 1024
+        trim_report = {"trimmed": [], "blocked_content": False}
+
+        # Add header
+        header = self._generate_header(pages)
+        content_parts.append(header)
+        total_size += len(header.encode('utf-8'))
+
+        # Process pages
+        for page in sorted_pages:
+            # Check for blocked paths
+            page_url = getattr(page, 'url', getattr(page, 'path', ''))
+            if any(blocked in str(page_url) for blocked in self.blocked_paths):
+                trim_report["blocked_content"] = True
+                continue
+
+            page_content = self._format_page_content(page, is_full_version=False)
+
+            # Redact secrets
+            for pattern in self.redact_patterns:
+                try:
+                    page_content = re.sub(pattern, '[REDACTED]', page_content)
+                except re.error:
+                    pass
+
+            page_size = len(page_content.encode('utf-8'))
+
+            if total_size + page_size > max_size_bytes:
+                trim_report["trimmed"].append({
+                    "page": str(page_url),
+                    "reason": "size_limit",
+                    "size_kb": page_size / 1024
+                })
+                continue
+
+            content_parts.append(page_content)
+            total_size += page_size
+
+        full_content = "\n\n".join(content_parts)
+        return self._post_process_content(full_content), trim_report
+
+    async def compose_full(self, pages: Union[List[PageContent], List['Page']]) -> str:
+        """Compose full version without size limits."""
+        return await self.compose_llms_full_txt(pages)
+
+    async def compose_llm_txt(self, pages: Union[List[PageContent], List['Page']]) -> str:
         """Compose a concise llm.txt from crawled pages."""
         if not pages:
             return ""
@@ -98,13 +178,14 @@ class LLMTxtComposer:
         
         return "\n\n".join(content_parts)
     
-    def _prioritize_pages(self, pages: List[PageContent]) -> List[PageContent]:
+    def _prioritize_pages(self, pages: Union[List[PageContent], List['Page']]) -> Union[List[PageContent], List['Page']]:
         """Sort pages by importance for inclusion - HuggingFace style."""
-        def page_score(page: PageContent) -> float:
+        def page_score(page: Union[PageContent, 'Page']) -> float:
             score = 0.0
-            
+
             title_lower = page.title.lower() if page.title else ""
-            url_lower = page.url.lower()
+            # Handle both PageContent (has url) and Page (has url or path)
+            url_lower = str(getattr(page, 'url', getattr(page, 'path', ''))).lower()
             content_lower = page.content[:1000].lower()  # Check first 1000 chars
             
             # HIGHEST PRIORITY: Installation and setup (like HF)
@@ -158,10 +239,21 @@ class LLMTxtComposer:
                 score -= 25
             
             # Depth scoring: prefer shallow pages for main concepts
-            if page.depth <= 2:
-                score += 5
-            elif page.depth > 4:
-                score -= 5
+            depth = getattr(page, 'depth', None)
+            if depth is not None:
+                if depth <= 2:
+                    score += 5
+                elif depth > 4:
+                    score -= 5
+            else:
+                # For Page objects, use priority instead
+                priority = getattr(page, 'priority', 50)
+                if priority < 20:
+                    score += 10
+                elif priority < 40:
+                    score += 5
+                elif priority > 60:
+                    score -= 5
             
             # Content length scoring
             content_length = len(page.content)
@@ -196,11 +288,20 @@ class LLMTxtComposer:
         content = f"## {title}\n\n"
         
         if is_full_version:
-            content += f"**URL**: {page.url}\n"
-            content += f"**Depth**: {page.depth}\n\n"
+            page_url = getattr(page, 'url', getattr(page, 'path', 'unknown'))
+            content += f"**URL**: {page_url}\n"
+            depth = getattr(page, 'depth', None)
+            if depth is not None:
+                content += f"**Depth**: {depth}\n\n"
+            else:
+                content += "\n"
         
         # Use markdown content if available, otherwise plain text
-        page_text = page.markdown if page.markdown.strip() else page.content
+        markdown_content = getattr(page, 'markdown', None)
+        if markdown_content and markdown_content.strip():
+            page_text = markdown_content
+        else:
+            page_text = page.content
         
         # Clean up content
         page_text = self._clean_content(page_text)

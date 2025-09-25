@@ -19,7 +19,7 @@ export default function UrlForm({ onCreated, size = 'md' }: Props) {
   const [error, setError] = useState<string | null>(null)
   const [genCount, setGenCount] = useState<number>(0)
   // Toggle to re-enable free trial limits
-  const ENABLE_LIMIT = false
+  const ENABLE_LIMIT = true
   const FREE_LIMIT = 3
   const [opts, setOpts] = useState<Required<Pick<GenerationRequest, 'max_pages' | 'max_depth' | 'full_version' | 'respect_robots'>>>({
     max_pages: 150,
