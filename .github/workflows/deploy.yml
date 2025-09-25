@@ -18,6 +18,20 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v3
 
+    - name: Check for AWS credentials
+      run: |
+        if [ -z "${{ secrets.AWS_ACCESS_KEY_ID }}" ]; then
+          echo "❌ AWS_ACCESS_KEY_ID secret is not set"
+          echo "Please add it at: https://github.com/${{ github.repository }}/settings/secrets/actions"
+          exit 1
+        fi
+        if [ -z "${{ secrets.AWS_SECRET_ACCESS_KEY }}" ]; then
+          echo "❌ AWS_SECRET_ACCESS_KEY secret is not set"
+          echo "Please add it at: https://github.com/${{ github.repository }}/settings/secrets/actions"
+          exit 1
+        fi
+        echo "✅ AWS credentials are configured"
+
     - name: Configure AWS credentials
       uses: aws-actions/configure-aws-credentials@v2
       with:

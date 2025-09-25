@@ -1,0 +1,63 @@
+name: Check Setup
+
+on:
+  workflow_dispatch:
+
+jobs:
+  check-secrets:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check Required Secrets
+        run: |
+          echo "🔍 Checking GitHub Secrets Configuration..."
+          echo "================================================"
+
+          # Check AWS credentials
+          if [ -n "${{ secrets.AWS_ACCESS_KEY_ID }}" ]; then
+            echo "✅ AWS_ACCESS_KEY_ID is set"
+          else
+            echo "❌ AWS_ACCESS_KEY_ID is NOT set"
+          fi
+
+          if [ -n "${{ secrets.AWS_SECRET_ACCESS_KEY }}" ]; then
+            echo "✅ AWS_SECRET_ACCESS_KEY is set"
+          else
+            echo "❌ AWS_SECRET_ACCESS_KEY is NOT set"
+          fi
+
+          # Check Amplify configuration
+          if [ -n "${{ secrets.AMPLIFY_APP_ID }}" ]; then
+            echo "✅ AMPLIFY_APP_ID is set"
+          else
+            echo "❌ AMPLIFY_APP_ID is NOT set (needed for frontend deployment)"
+          fi
+
+          # Check Cohere API key (if used)
+          if [ -n "${{ secrets.COHERE_API_KEY }}" ]; then
+            echo "✅ COHERE_API_KEY is set"
+          else
+            echo "⚠️  COHERE_API_KEY is NOT set (may be configured in App Runner)"
+          fi
+
+          echo ""
+          echo "📝 To add missing secrets, go to:"
+          echo "   https://github.com/${{ github.repository }}/settings/secrets/actions"
+          echo ""
+          echo "Required values:"
+          echo "- AWS_ACCESS_KEY_ID: Your AWS access key"
+          echo "- AWS_SECRET_ACCESS_KEY: Your AWS secret key"
+          echo "- AMPLIFY_APP_ID: d18z0bfb4y2t29"
+
+      - name: Show Repository Info
+        run: |
+          echo "📦 Repository Information"
+          echo "========================="
+          echo "Repository: ${{ github.repository }}"
+          echo "Branch: ${{ github.ref_name }}"
+          echo "Commit: ${{ github.sha }}"
+          echo ""
+          echo "🚀 Deployment Targets:"
+          echo "- Backend: App Runner (https://hdinqg7vmm.us-east-1.awsapprunner.com)"
+          echo "- Frontend: Amplify App ID d18z0bfb4y2t29"
+          echo "- ECR: 796973517930.dkr.ecr.us-east-1.amazonaws.com/llm-txt-api"
+          echo "- S3: llm-txt-jobs bucket"
