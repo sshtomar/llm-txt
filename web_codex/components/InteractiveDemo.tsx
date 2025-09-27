@@ -3,6 +3,9 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { createGeneration, downloadFile, getJobStatus } from '@/api/client'
 import { asciiProgress, prettyBytes } from '@/utils/format'
 
+const ENABLE_LIMIT = true
+const FREE_LIMIT = 3
+
 type Preset = { id: string; title: string; url: string }
 
 const PRESETS: Preset[] = [
