@@ -6,7 +6,6 @@ build-backend = "hatchling.build"
 name = "llms-txt"
 version = "0.1.0"
 description = "URL to llm.txt generator - crawl docs sites and create LLM-friendly summaries"
-readme = "README.md"
 license = {text = "MIT"}
 authors = [{name = "LLM-TXT Team"}]
 maintainers = [{name = "LLM-TXT Team"}]
