@@ -77,10 +77,14 @@ export async function cancelJob(jobId: string): Promise<{ message: string }> {
 export async function getMultipleJobStatuses(jobIds: string[]): Promise<JobStatusResponse[]> {
   const promises = jobIds.map(id => getJobStatus(id).catch(err => ({
     job_id: id,
-    status: 'error' as const,
+    status: 'failed' as const,
     message: err.message,
     progress: 0,
     created_at: 0,
+    current_phase: 'initializing' as const,
+    pages_discovered: 0,
+    pages_processed: 0,
+    processing_logs: [],
   } as JobStatusResponse)))
 
   return Promise.all(promises)
