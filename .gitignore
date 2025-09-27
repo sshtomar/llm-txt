@@ -45,6 +45,14 @@ outputs/
 *.jpeg
 .playwright-mcp/
 
+# Generated LLM outputs (do not track)
+/llm.txt
+/llms-full.txt
+/llm.full.txt
+
+# Ignore local MCP package if present
+/mcp-package/
+
 # Temporary files
 *.tmp
 *.temp
