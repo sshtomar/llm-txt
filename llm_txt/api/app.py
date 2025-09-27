@@ -4,12 +4,13 @@ import time
 import uuid
 import logging
 from typing import Dict, Any
-from fastapi import FastAPI, HTTPException, BackgroundTasks
+from fastapi import FastAPI, HTTPException, BackgroundTasks, Response, Request
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 
 from ..worker.job_manager import JobManager
 from .models import GenerationRequest, GenerationResponse, JobStatusResponse, HealthResponse
+from .auth import verify_hmac_request
 from ..worker.models import JobStatus
 from .. import __version__
 from .middleware import TimeoutMiddleware, RetryMiddleware, CircuitBreakerMiddleware
@@ -76,11 +77,14 @@ async def health_check() -> HealthResponse:
 
 @app.post("/v1/generations", response_model=GenerationResponse, status_code=202)
 async def create_generation(
+    request_raw: Request,
     request: GenerationRequest,
     background_tasks: BackgroundTasks
 ) -> GenerationResponse:
     """Create a new generation job."""
     try:
+        # Verify signed proxy call if required
+        await verify_hmac_request(request_raw)
         # Generate unique job ID
         job_id = str(uuid.uuid4())
         
@@ -112,13 +116,18 @@ async def create_generation(
 
 
 @app.get("/v1/generations/{job_id}", response_model=JobStatusResponse)
-async def get_job_status(job_id: str) -> JobStatusResponse:
+async def get_job_status(job_id: str, response: Response, request: Request) -> JobStatusResponse:
     """Get the status of a generation job."""
     try:
+        await verify_hmac_request(request)
         job = await job_manager.get_job(job_id)
         
         if not job:
             raise HTTPException(status_code=404, detail="Job not found")
+        # Prevent intermediate caches from serving stale status
+        response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
         
         return JobStatusResponse(
             job_id=job_id,
@@ -146,8 +155,9 @@ async def get_job_status(job_id: str) -> JobStatusResponse:
 
 
 @app.get("/v1/generations/{job_id}/download/{file_type}")
-async def download_result(job_id: str, file_type: str) -> JSONResponse:
+async def download_result(job_id: str, file_type: str, request: Request) -> JSONResponse:
     """Download generated files."""
+    await verify_hmac_request(request)
     if file_type not in ["llm.txt", "llms-full.txt"]:
         raise HTTPException(status_code=400, detail="Invalid file type")
     
@@ -173,9 +183,10 @@ async def download_result(job_id: str, file_type: str) -> JSONResponse:
 
 
 @app.delete("/v1/generations/{job_id}")
-async def cancel_job(job_id: str) -> Dict[str, Any]:
+async def cancel_job(job_id: str, request: Request) -> Dict[str, Any]:
     """Cancel a running job."""
     try:
+        await verify_hmac_request(request)
         success = await job_manager.cancel_job(job_id)
         
         if not success:

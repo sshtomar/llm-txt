@@ -64,6 +64,7 @@ class S3JobStorage:
                 "message": job.message,
                 "created_at": job.created_at,
                 "completed_at": job.completed_at,
+                "last_updated": getattr(job, "last_updated", None) or datetime.utcnow().timestamp(),
                 "max_pages": job.max_pages,
                 "max_depth": job.max_depth,
                 "full_version": job.full_version,
@@ -150,6 +151,11 @@ class S3JobStorage:
             job.message = job_data.get("message", "")
             job.created_at = job_data.get("created_at")
             job.completed_at = job_data.get("completed_at")
+            # last_updated may not exist in older records; default to created_at
+            try:
+                job.last_updated = job_data.get("last_updated") or job_data.get("created_at")
+            except Exception:
+                pass
             job.current_phase = job_data.get("current_phase", "initializing")
             job.current_page_url = job_data.get("current_page_url")
             job.pages_discovered = job_data.get("pages_discovered", 0)

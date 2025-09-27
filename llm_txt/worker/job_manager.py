@@ -68,13 +68,17 @@ class JobManager:
         # Check memory cache first
         job = self.jobs.get(job_id)
 
-        # If not in cache and S3 is enabled, try loading from S3
-        if not job and self.s3_storage:
-            job = await self.s3_storage.load_job(job_id)
-            if job:
-                # Add to cache for future access
-                self.jobs[job_id] = job
-                logger.debug(f"Loaded job {job_id} from S3")
+        # If S3 is enabled, attempt to fetch a fresher snapshot
+        if self.s3_storage:
+            s3_job = await self.s3_storage.load_job(job_id)
+            if s3_job:
+                # Prefer the more recent snapshot between memory and S3
+                mem_ts = getattr(job, "last_updated", 0.0) if job else 0.0
+                s3_ts = getattr(s3_job, "last_updated", 0.0)
+                if not job or s3_ts >= mem_ts:
+                    self.jobs[job_id] = s3_job
+                    job = s3_job
+                    logger.debug(f"Loaded job {job_id} from S3 (fresh)" )
 
         return job
     

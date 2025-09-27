@@ -32,6 +32,7 @@ class Job:
     progress: float = 0.0
     message: str = ""
     created_at: float = field(default_factory=time.time)
+    last_updated: float = field(default_factory=time.time)
     completed_at: Optional[float] = None
     
     # Detailed progress tracking
@@ -61,6 +62,7 @@ class Job:
         """Update job status and message."""
         self.status = status
         self.message = message
+        self.last_updated = time.time()
         
         if status in [JobStatus.COMPLETED, JobStatus.FAILED, JobStatus.CANCELLED]:
             self.completed_at = time.time()
@@ -68,6 +70,7 @@ class Job:
     def set_progress(self, progress: float, message: str = "") -> None:
         """Update job progress."""
         self.progress = max(0.0, min(1.0, progress))
+        self.last_updated = time.time()
         if message:
             self.message = message
             # Add to processing logs with timestamp
