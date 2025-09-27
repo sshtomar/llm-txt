@@ -15,10 +15,28 @@ import { useEffect, useState } from 'react'
 export default function Page() {
   const [jobId, setJobId] = useState<string | null>(null)
   const { status, error } = useJobPolling(jobId)
+  const [toast, setToast] = useState<{ kind: 'success' | 'info' | 'error'; msg: string } | null>(null)
 
   useEffect(() => {
     if (error) console.error(error)
   }, [error])
+
+  // Detect payment return and show a friendly toast
+  useEffect(() => {
+    try {
+      const url = new URL(window.location.href)
+      const payment = url.searchParams.get('payment')
+      if (payment === 'success') {
+        setToast({ kind: 'success', msg: 'Thanks for upgrading — you’re all set.' })
+      } else if (payment === 'cancel') {
+        setToast({ kind: 'info', msg: 'Checkout canceled. You can upgrade anytime.' })
+      }
+      if (payment) {
+        url.searchParams.delete('payment')
+        window.history.replaceState({}, '', url.toString())
+      }
+    } catch {}
+  }, [])
 
   function onCreated(res: GenerationResponse) {
     setJobId(res.job_id)
@@ -29,6 +47,16 @@ export default function Page() {
   return (
     <div className="min-h-screen flex flex-col">
       <Header />
+      {toast && (
+        <section className="mx-auto max-w-6xl px-6 pt-3 w-full">
+          <div className={`border p-3 text-sm ${toast.kind === 'success' ? 'border-terminal-teal text-terminal-teal' : toast.kind === 'error' ? 'border-terminal-red text-terminal-red' : 'border-terminal-border opacity-80'}`}>
+            <div className="flex items-center justify-between gap-3">
+              <div>{toast.msg}</div>
+              <button className="opacity-70 hover:opacity-100" onClick={() => setToast(null)}>×</button>
+            </div>
+          </div>
+        </section>
+      )}
       <Hero onCreated={onCreated} />
       {/* Status directly under the CTA */}
       <section className="mx-auto max-w-6xl px-6 pb-6 w-full">

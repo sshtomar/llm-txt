@@ -13,7 +13,7 @@ export default function Hero({ onCreated }: { onCreated: (res: GenerationRespons
           Politely crawls documentation, extracts clean Markdown, and composes an optimized `llms.txt` for LLM context windows — fast, deterministic, and robots-aware.
         </p>
         <div className="mb-4" id="generate">
-          <UrlForm onCreated={onCreated} size="lg" />
+          <UrlForm onCreated={onCreated} />
         </div>
         <div className="text-xs opacity-70 flex flex-wrap items-center gap-4">
           <div>• Robots-aware</div>

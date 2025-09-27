@@ -113,19 +113,51 @@ export default function UrlForm({ onCreated, size = 'md' }: Props) {
         onBlur={()=>setFocused(false)}
         className={`w-full ${isLg ? 'text-lg px-5 py-4' : 'text-base px-4 py-3'} border border-terminal-border bg-[var(--bg)] focus:outline-none focus:ring-0 focus:border-terminal-teal`}
       />
-      {error && <p className="text-terminal-red text-sm">{error}</p>}
+      {error && (
+        <div className="text-sm">
+          <div className="text-terminal-red">{error}</div>
+          {String(error).toLowerCase().includes('rate') && (
+            <div className="mt-1">
+              High demand. Upgrade for faster processing and higher limits.{' '}
+              <a
+                className="underline text-terminal-teal"
+                href={(process.env.NEXT_PUBLIC_CHECKOUT_URL || '#') + (process.env.NEXT_PUBLIC_CHECKOUT_URL ? '&source=rate-limit' : '')}
+                target="_blank"
+                rel="noreferrer"
+              >Upgrade</a>
+            </div>
+          )}
+        </div>
+      )}
       <div className="flex items-center gap-3">
-        <button disabled={loading || limitReached} className={`btn btn-primary ${isLg ? 'px-5 py-3 text-base' : 'px-4 py-2 text-sm'}`}
-          data-cta>
-          {limitReached ? 'Upgrade to continue' : (loading ? 'Starting…' : 'Generate llms.txt')}
-        </button>
+        {limitReached ? (
+          <a
+            href={(process.env.NEXT_PUBLIC_CHECKOUT_URL || '#') + (process.env.NEXT_PUBLIC_CHECKOUT_URL ? '&source=form' : '')}
+            target="_blank"
+            rel="noreferrer"
+            className={`btn btn-primary ${isLg ? 'px-5 py-3 text-base' : 'px-4 py-2 text-sm'}`}
+            onClick={() => { try { window.dispatchEvent(new CustomEvent('upgrade_click', { detail: { source: 'form' } })) } catch {} }}
+          >
+            Upgrade to continue
+          </a>
+        ) : (
+          <button disabled={loading} className={`btn btn-primary ${isLg ? 'px-5 py-3 text-base' : 'px-4 py-2 text-sm'}`}
+            data-cta>
+            {loading ? 'Starting…' : 'Generate llms.txt'}
+          </button>
+        )}
         <button type="button" onClick={()=>setAdvanced(v=>!v)} className="text-sm underline">{advanced ? 'Hide' : 'Show'} advanced options</button>
       </div>
-      <div className="text-xs opacity-70">Free trials left: {trialsLeft} / {FREE_LIMIT}</div>
+      {trialsLeft > 0 && (
+        <div className="text-xs">
+          <span className={`px-2 py-0.5 border ${trialsLeft === 1 ? 'border-yellow-600 text-yellow-600' : 'border-terminal-border opacity-70'}`}>
+            Free trials left: {trialsLeft} / {FREE_LIMIT}
+          </span>
+        </div>
+      )}
       {limitReached && (
-        <div className="text-sm opacity-80 border border-terminal-border p-3 bg-terminal-panel">
-          You have reached the free limit of 3 generations. Please upgrade to continue.
-          {' '}<a className="underline" href="https://github.com/sshtomar/llm-txt" target="_blank" rel="noreferrer">Learn more</a>
+        <div className="text-sm opacity-80 border border-terminal-border p-3 bg-terminal-panel max-w-prose">
+          You have reached the free limit of 3 generations.
         </div>
       )}
       {/* Trials indicator removed per request */}
