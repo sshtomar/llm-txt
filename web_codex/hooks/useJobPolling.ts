@@ -13,7 +13,20 @@ export function useJobPolling(jobId?: string | null, intervalMs = 1500) {
     if (!jobId) return
     try {
       const data = await getJobStatus(jobId)
-      setStatus(data)
+      setStatus(prev => {
+        if (!prev) return data
+        const prevLogs = prev.processing_logs || []
+        const inLogs = data.processing_logs || []
+        const mergedLogs = inLogs.length >= prevLogs.length ? inLogs : prevLogs
+        return {
+          ...data,
+          // Ensure monotonic, non-decreasing values in UI
+          progress: Math.max(prev.progress ?? 0, data.progress ?? 0),
+          pages_discovered: Math.max(prev.pages_discovered ?? 0, data.pages_discovered ?? 0),
+          pages_processed: Math.max(prev.pages_processed ?? 0, data.pages_processed ?? 0),
+          processing_logs: mergedLogs,
+        }
+      })
       setError(null)
       if (['completed', 'failed', 'cancelled'].includes(data.status)) {
         if (timer.current) window.clearInterval(timer.current)
@@ -53,4 +66,3 @@ export function useJobPolling(jobId?: string | null, intervalMs = 1500) {
 
   return { status, error, refresh: poll }
 }
-

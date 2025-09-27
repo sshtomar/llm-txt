@@ -12,7 +12,10 @@ export default function ResultsPanel({ job }: { job: JobStatusResponse }) {
           <div className="text-sm mb-1">llms.txt</div>
           <div className="text-xs opacity-70 mb-2">Optimized summary • {sizeLabel}</div>
           {job.llm_txt_url ? (
-            <a className="px-3 py-1 border border-terminal-border inline-block" href={job.llm_txt_url}>download</a>
+            <a
+              className="px-3 py-1 border border-terminal-border inline-block"
+              href={`/v1/generations/${job.job_id}/download/llm.txt?raw=1`}
+            >download</a>
           ) : (
             <button disabled className="px-3 py-1 border border-terminal-border opacity-50">download</button>
           )}
@@ -21,7 +24,10 @@ export default function ResultsPanel({ job }: { job: JobStatusResponse }) {
           <div className="text-sm mb-1">llms-full.txt</div>
           <div className="text-xs opacity-70 mb-2">Complete version</div>
           {job.llms_full_txt_url ? (
-            <a className="px-3 py-1 border border-terminal-border inline-block" href={job.llms_full_txt_url}>download</a>
+            <a
+              className="px-3 py-1 border border-terminal-border inline-block"
+              href={`/v1/generations/${job.job_id}/download/llms-full.txt?raw=1`}
+            >download</a>
           ) : (
             <button disabled className="px-3 py-1 border border-terminal-border opacity-50">download</button>
           )}

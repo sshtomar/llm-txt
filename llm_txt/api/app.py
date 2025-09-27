@@ -5,7 +5,7 @@ import uuid
 import logging
 from typing import Dict, Any
 from fastapi import FastAPI, HTTPException, BackgroundTasks, Response, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, PlainTextResponse
 from fastapi.middleware.cors import CORSMiddleware
 
 from ..worker.job_manager import JobManager
@@ -155,7 +155,7 @@ async def get_job_status(job_id: str, response: Response, request: Request) -> J
 
 
 @app.get("/v1/generations/{job_id}/download/{file_type}")
-async def download_result(job_id: str, file_type: str, request: Request) -> JSONResponse:
+async def download_result(job_id: str, file_type: str, request: Request):
     """Download generated files."""
     await verify_hmac_request(request)
     if file_type not in ["llm.txt", "llms-full.txt"]:
@@ -166,14 +166,19 @@ async def download_result(job_id: str, file_type: str, request: Request) -> JSON
         
         if not content:
             raise HTTPException(status_code=404, detail="File not found or job not completed")
-        
-        return JSONResponse(
-            content={"content": content},
-            headers={
-                "Content-Disposition": f"attachment; filename={file_type}",
-                "Content-Type": "text/plain"
-            }
-        )
+        # If raw=1, return plain text body for direct downloads
+        raw = request.query_params.get("raw")
+        headers = {
+            "Content-Disposition": f"attachment; filename={file_type}",
+            "Content-Type": "text/plain; charset=utf-8",
+            "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+            "Pragma": "no-cache",
+            "Expires": "0",
+        }
+        if raw and raw.lower() in ("1", "true", "yes"):
+            return PlainTextResponse(content, headers=headers)
+        # Default: JSON wrapper used by programmatic clients
+        return JSONResponse(content={"content": content}, headers=headers)
         
     except HTTPException:
         raise

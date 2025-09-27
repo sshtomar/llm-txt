@@ -7,7 +7,8 @@ import time
 from typing import Optional, Dict, Any
 from datetime import datetime, timedelta
 import jwt
-from fastapi import HTTPException, Security, Depends
+import hmac
+from fastapi import HTTPException, Security, Depends, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel
 import boto3
@@ -334,3 +335,39 @@ def verify_token(token: str) -> Optional[str]:
         raise HTTPException(status_code=401, detail="Token expired")
     except jwt.InvalidTokenError:
         raise HTTPException(status_code=401, detail="Invalid token")
+
+
+async def verify_hmac_request(request: Request) -> None:
+    """Verify HMAC signature on incoming requests when required.
+
+    The signature is computed as hex( HMAC_SHA256(secret, f"{method}\n{path}\n{timestamp}\n{nonce}") ).
+    """
+    require = os.getenv("REQUIRE_HMAC_SIGNATURE", "false").lower() == "true"
+    if not require:
+        return
+
+    secret = os.getenv("HMAC_SECRET")
+    if not secret:
+        raise HTTPException(status_code=500, detail="Server HMAC not configured")
+
+    sig = request.headers.get("x-signature")
+    ts = request.headers.get("x-timestamp")
+    nonce = request.headers.get("x-nonce")
+
+    if not sig or not ts or not nonce:
+        raise HTTPException(status_code=401, detail="Missing signature headers")
+
+    try:
+        ts_float = float(ts)
+    except Exception:
+        raise HTTPException(status_code=401, detail="Invalid timestamp")
+
+    # Allow small clock skew
+    now = time.time()
+    if abs(now - ts_float) > 300:  # 5 minutes
+        raise HTTPException(status_code=401, detail="Timestamp expired")
+
+    message = f"{request.method}\n{request.url.path}\n{ts}\n{nonce}"
+    expected = hmac.new(secret.encode("utf-8"), message.encode("utf-8"), hashlib.sha256).hexdigest()
+    if not hmac.compare_digest(expected, sig):
+        raise HTTPException(status_code=401, detail="Invalid signature")

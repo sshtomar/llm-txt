@@ -104,6 +104,21 @@ make fmt
 make dev
 ```
 
+### Optional: Enable Google/GitHub Auth in the Frontend
+
+The Next.js frontend (web_codex) supports sign-in with Google and GitHub via NextAuth.
+
+1. Create OAuth apps:
+   - GitHub: callback URL `http://localhost:3000/api/auth/callback/github`
+   - Google: authorized redirect URI `http://localhost:3000/api/auth/callback/google`
+2. Create `web_codex/.env.local` (or set envs) with:
+   - `NEXTAUTH_URL=http://localhost:3000`
+   - `NEXTAUTH_SECRET=<random 32+ char string>`
+   - `GITHUB_ID`, `GITHUB_SECRET`
+   - `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`
+3. Start frontend: `cd web_codex && npm install && npm run dev`
+4. Use the Sign in button in the header. The Generate action requires authentication.
+
 ## Architecture
 
 ```
