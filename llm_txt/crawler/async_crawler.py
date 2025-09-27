@@ -63,6 +63,14 @@ class AsyncWebCrawler:
             
             # Filter and organize URLs
             urls_to_crawl = self._organize_urls_by_depth(start_url, discovered_urls)
+
+            # Emit an initial progress update so consumers know total discovered early
+            if self.progress_callback:
+                try:
+                    self.progress_callback(start_url, 0, len(discovered_urls))
+                except Exception:
+                    # Don't let callback issues break the crawl
+                    logger.debug("Progress callback failed during initial update", exc_info=True)
             
             # Crawl pages
             pages = []

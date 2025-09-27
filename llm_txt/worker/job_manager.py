@@ -105,8 +105,8 @@ class JobManager:
                 job.pages_processed = pages_done
                 progress = 0.2 + (0.4 * (pages_done / max(pages_total, 1)))
                 job.set_progress(progress, f"Crawling: {current_url[:50]}...")
-                # Save progress to S3 periodically
-                if self.s3_storage and pages_done % 10 == 0:
+                # Save progress to S3 on every update to keep cross-instance reads fresh
+                if self.s3_storage:
                     asyncio.create_task(self.s3_storage.save_job(job))
             
             crawler = AsyncWebCrawler(crawl_config, progress_callback=update_crawl_progress)
