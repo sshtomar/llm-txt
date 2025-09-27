@@ -6,7 +6,7 @@ export default function Header() {
       <div className="mx-auto max-w-6xl px-6 py-4 flex items-center justify-between">
         <div className="flex items-center gap-4">
           <div className="h-6 w-1.5 bg-terminal-teal" />
-          <h1 className="text-xl tracking-tight">llm.txt generator</h1>
+          <h1 className="text-xl tracking-tight">llms.txt generator</h1>
         </div>
         {/* Nav removed per request */}
       </div>

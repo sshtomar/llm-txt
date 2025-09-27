@@ -2,8 +2,8 @@ import './globals.css'
 import React from 'react'
 
 export const metadata = {
-  title: 'llm.txt Generator',
-  description: 'Crawl docs and compose optimized llm.txt files',
+  title: 'llms.txt Generator',
+  description: 'Crawl docs and compose optimized llms.txt files',
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

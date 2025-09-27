@@ -7,6 +7,7 @@ export function useJobPolling(jobId?: string | null, intervalMs = 1500) {
   const [status, setStatus] = useState<JobStatusResponse | null>(null)
   const [error, setError] = useState<string | null>(null)
   const timer = useRef<number | null>(null)
+  const previousJobId = useRef<string | null>(null)
 
   const poll = useCallback(async () => {
     if (!jobId) return
@@ -24,7 +25,23 @@ export function useJobPolling(jobId?: string | null, intervalMs = 1500) {
   }, [jobId])
 
   useEffect(() => {
-    if (!jobId) return
+    if (!jobId) {
+      // Only reset status if we're clearing the job ID
+      if (previousJobId.current !== null) {
+        setStatus(null)
+        setError(null)
+      }
+      previousJobId.current = null
+      return
+    }
+
+    // Only reset status if this is a different job ID
+    if (previousJobId.current !== null && previousJobId.current !== jobId) {
+      setStatus(null)
+      setError(null)
+    }
+    previousJobId.current = jobId
+
     // Immediately poll once
     poll()
     // Then on an interval
