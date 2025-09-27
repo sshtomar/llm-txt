@@ -57,6 +57,25 @@ jobs:
 
     - name: Update App Runner service
       run: |
+        # First, wait for service to be in RUNNING state before attempting deployment
+        echo "Waiting for service to be ready..."
+        for i in {1..20}; do
+          STATUS=$(aws apprunner describe-service \
+            --service-arn ${{ env.APP_RUNNER_SERVICE_ARN }} \
+            --region ${{ env.AWS_REGION }} \
+            --query 'Service.Status' \
+            --output text)
+
+          if [ "$STATUS" = "RUNNING" ]; then
+            echo "Service is ready"
+            break
+          fi
+
+          echo "Service status: $STATUS - waiting..."
+          sleep 15
+        done
+
+        # Start deployment
         aws apprunner start-deployment \
           --service-arn ${{ env.APP_RUNNER_SERVICE_ARN }} \
           --region ${{ env.AWS_REGION }}
