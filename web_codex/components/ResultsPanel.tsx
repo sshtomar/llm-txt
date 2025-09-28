@@ -3,8 +3,17 @@ import type { JobStatusResponse } from '@/types/api'
 import { prettyBytes } from '@/utils/format'
 import PreviewTabs from './PreviewTabs'
 
+import { useEffect, useState } from 'react'
+
 export default function ResultsPanel({ job }: { job: JobStatusResponse }) {
   const sizeLabel = job.total_size_kb ? prettyBytes(job.total_size_kb) : '—'
+  const [isPro, setIsPro] = useState(false)
+  useEffect(() => {
+    fetch('/api/entitlement', { cache: 'no-store' })
+      .then(r => r.json())
+      .then(j => setIsPro(j?.plan === 'pro'))
+      .catch(() => setIsPro(false))
+  }, [])
   return (
     <section className="space-y-3">
       <div className="grid grid-cols-2 gap-3">
@@ -34,6 +43,7 @@ export default function ResultsPanel({ job }: { job: JobStatusResponse }) {
         </div>
       </div>
       <PreviewTabs job={job} />
+      {!isPro && (
       <div className="border border-terminal-border bg-terminal-panel p-3 text-sm">
         <div className="mb-1">Get more with the full plan:</div>
         <ul className="list-disc list-inside opacity-80">
@@ -53,6 +63,7 @@ export default function ResultsPanel({ job }: { job: JobStatusResponse }) {
           </a>
         </div>
       </div>
+      )}
     </section>
   )
 }

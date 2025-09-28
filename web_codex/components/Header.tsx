@@ -1,6 +1,14 @@
 "use client"
+import { useEffect, useState } from 'react'
 
 export default function Header() {
+  const [isPro, setIsPro] = useState(false)
+  useEffect(() => {
+    fetch('/api/entitlement', { cache: 'no-store' })
+      .then(r => r.json())
+      .then(j => setIsPro(j?.plan === 'pro'))
+      .catch(() => setIsPro(false))
+  }, [])
   const checkout = (process.env.NEXT_PUBLIC_CHECKOUT_URL || '#') + (process.env.NEXT_PUBLIC_CHECKOUT_URL ? '&source=header' : '')
   return (
     <header className="border-b border-terminal-border bg-[var(--panel)]">
@@ -9,6 +17,7 @@ export default function Header() {
           <div className="h-6 w-1.5 bg-terminal-teal" />
           <h1 className="text-xl tracking-tight">llms.txt generator</h1>
         </div>
+        {!isPro && (
         <a
           href={checkout}
           target="_blank"
@@ -20,6 +29,7 @@ export default function Header() {
         >
           Upgrade
         </a>
+        )}
       </div>
     </header>
   )

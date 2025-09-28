@@ -13,13 +13,14 @@ function isValidUrl(u: string) {
 }
 
 export default function UrlForm({ onCreated, size = 'md' }: Props) {
+  const [isPro, setIsPro] = useState(false)
   const [url, setUrl] = useState('')
   const [advanced, setAdvanced] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [genCount, setGenCount] = useState<number>(0)
-  // Toggle to re-enable free trial limits
-  const ENABLE_LIMIT = true
+  // Toggle to re-enable free trial limits (disabled for Pro)
+  const ENABLE_LIMIT = !isPro
   const FREE_LIMIT = 3
   const [opts, setOpts] = useState<Required<Pick<GenerationRequest, 'max_pages' | 'max_depth' | 'full_version' | 'respect_robots'>>>({
     max_pages: 150,
@@ -32,6 +33,14 @@ export default function UrlForm({ onCreated, size = 'md' }: Props) {
   const [focused, setFocused] = useState(false)
 
   useEffect(() => { inputRef.current?.focus() }, [])
+
+  // Check entitlement cookie via API
+  useEffect(() => {
+    fetch('/api/entitlement', { cache: 'no-store' })
+      .then(r => r.json())
+      .then(j => setIsPro(j?.plan === 'pro'))
+      .catch(() => setIsPro(false))
+  }, [])
 
   // Load generation count from localStorage
   useEffect(() => {

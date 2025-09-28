@@ -104,6 +104,21 @@ make fmt
 make dev
 ```
 
+### Optional: Payments + Lightweight Pro Unlock
+
+Add a simple upgrade flow without accounts:
+
+1. Set the checkout URL env (Amplify or web_codex/.env.local):
+   - `NEXT_PUBLIC_CHECKOUT_URL=https://checkout.dodopayments.com/buy/pdt_sao6YQaUrrED1YHn2BVbF?quantity=1&redirect_url=https%3A%2F%2Fdocsforllm.dev%2Fupgrade%2Fsuccess`
+2. Configure server-side cookie settings:
+   - `ENTITLEMENT_ALLOW_UNVERIFIED=false` (recommended)
+   - `ENTITLEMENT_SECRET=<random secret>`
+   - The redirect URL should append `?t=<ENTITLEMENT_SECRET>` if unverified is false.
+3. On success, Next.js route `/upgrade/success` sets a `llmxt_pro=1` HttpOnly cookie for 30 days and redirects to `/?payment=success`.
+4. The UI checks `/api/entitlement` and removes free-tier limits and upgrade prompts for Pro users.
+
+If you prefer the simplest path for demos: set `ENTITLEMENT_ALLOW_UNVERIFIED=true` and omit the `t` token.
+
 ### Optional: Enable Google/GitHub Auth in the Frontend
 
 The Next.js frontend (web_codex) supports sign-in with Google and GitHub via NextAuth.
