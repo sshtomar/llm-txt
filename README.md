@@ -104,20 +104,45 @@ make fmt
 make dev
 ```
 
-### Optional: Payments + Lightweight Pro Unlock
+### Payment System (Dodo Payments + DynamoDB)
 
-Add a simple upgrade flow without accounts:
+The application includes a secure payment system that:
+- ✅ Verifies webhooks from Dodo Payments with HMAC signatures
+- ✅ Stores entitlements persistently in DynamoDB
+- ✅ Uses one-time tokens (not static secrets) for upgrade success
+- ✅ Checks database for active Pro status (not just cookies)
+- ✅ Collects email before checkout to associate payments with users
+- ✅ Prevents cookie-based entitlement bypass attacks
 
-1. Set the checkout URL env (Amplify or web_codex/.env.local):
-   - `NEXT_PUBLIC_CHECKOUT_URL=https://checkout.dodopayments.com/buy/pdt_sao6YQaUrrED1YHn2BVbF?quantity=1&redirect_url=https%3A%2F%2Fdocsforllm.dev%2Fupgrade%2Fsuccess`
-2. Configure server-side cookie settings:
-   - `ENTITLEMENT_ALLOW_UNVERIFIED=false` (recommended)
-   - `ENTITLEMENT_SECRET=<random secret>`
-   - The redirect URL should append `?t=<ENTITLEMENT_SECRET>` if unverified is false.
-3. On success, Next.js route `/upgrade/success` sets a `llmxt_pro=1` HttpOnly cookie for 30 days and redirects to `/?payment=success`.
-4. The UI checks `/api/entitlement` and removes free-tier limits and upgrade prompts for Pro users.
+**Quick Setup:**
 
-If you prefer the simplest path for demos: set `ENTITLEMENT_ALLOW_UNVERIFIED=true` and omit the `t` token.
+1. **Set up DynamoDB tables:**
+   ```bash
+   ./scripts/setup-dynamodb-tables.sh us-east-1
+   ```
+
+2. **Configure environment variables** (see `.env.example`):
+   ```bash
+   DODO_WEBHOOK_SECRET=your-webhook-secret
+   ENTITLEMENT_SECRET=$(openssl rand -hex 32)
+   ENTITLEMENT_ALLOW_UNVERIFIED=false  # true for dev only
+   AWS_REGION=us-east-1
+   ENTITLEMENTS_TABLE=llmxt-entitlements
+   PAYMENTS_TABLE=llmxt-payments
+   ```
+
+3. **Configure Dodo webhook:**
+   - URL: `https://your-domain.com/api/webhooks/dodo`
+   - Events: `payment.succeeded`, `payment.failed`, `subscription.cancelled`
+
+4. **Install dependencies:**
+   ```bash
+   cd web_codex && npm install
+   ```
+
+📘 **Full setup guide:** See [PAYMENT_SETUP.md](./PAYMENT_SETUP.md) for detailed instructions, security checklist, and troubleshooting.
+
+**Dev testing:** Set `ENTITLEMENT_ALLOW_UNVERIFIED=true` in `.env.local` and visit `/upgrade/success` to unlock Pro locally without payment.
 
 ### Optional: Enable Google/GitHub Auth in the Frontend
 

@@ -2,6 +2,7 @@
 import type { JobStatusResponse } from '@/types/api'
 import { prettyBytes } from '@/utils/format'
 import PreviewTabs from './PreviewTabs'
+import { handleUpgradeClick } from '@/lib/checkout'
 
 import { useEffect, useState } from 'react'
 
@@ -52,15 +53,12 @@ export default function ResultsPanel({ job }: { job: JobStatusResponse }) {
           <li>Priority help for tricky sites</li>
         </ul>
         <div className="mt-2">
-          <a
+          <button
             className="px-3 py-1 inline-block border border-terminal-border hover:border-terminal-teal"
-            href={(process.env.NEXT_PUBLIC_CHECKOUT_URL || '#') + (process.env.NEXT_PUBLIC_CHECKOUT_URL ? `&source=results&job_id=${encodeURIComponent(job.job_id)}` : '')}
-            target="_blank"
-            rel="noreferrer"
-            onClick={() => { try { window.dispatchEvent(new CustomEvent('upgrade_click', { detail: { source: 'results', jobId: job.job_id } })) } catch {} }}
+            onClick={(e) => { e.preventDefault(); handleUpgradeClick('results') }}
           >
             Upgrade — unlimited generations
-          </a>
+          </button>
         </div>
       </div>
       )}

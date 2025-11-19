@@ -15,7 +15,9 @@
     "react-dom": "18.3.1",
     "framer-motion": "11.2.10",
     "react-syntax-highlighter": "15.5.0",
-    "react-markdown": "9.0.1"
+    "react-markdown": "9.0.1",
+    "@aws-sdk/client-dynamodb": "^3.682.0",
+    "@aws-sdk/lib-dynamodb": "^3.682.0"
   },
   "devDependencies": {
     "@types/node": "20.12.12",

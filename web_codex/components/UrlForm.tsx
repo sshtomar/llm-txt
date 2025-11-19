@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { createGeneration } from '@/api/client'
 import type { GenerationRequest, GenerationResponse } from '@/types/api'
+import { handleUpgradeClick } from '@/lib/checkout'
 
 type Props = {
   onCreated: (res: GenerationResponse) => void
@@ -128,27 +129,22 @@ export default function UrlForm({ onCreated, size = 'md' }: Props) {
           {String(error).toLowerCase().includes('rate') && (
             <div className="mt-1">
               High demand. Upgrade for faster processing and higher limits.{' '}
-              <a
+              <button
                 className="underline text-terminal-teal"
-                href={(process.env.NEXT_PUBLIC_CHECKOUT_URL || '#') + (process.env.NEXT_PUBLIC_CHECKOUT_URL ? '&source=rate-limit' : '')}
-                target="_blank"
-                rel="noreferrer"
-              >Upgrade</a>
+                onClick={(e) => { e.preventDefault(); handleUpgradeClick('rate-limit') }}
+              >Upgrade</button>
             </div>
           )}
         </div>
       )}
       <div className="flex items-center gap-3">
         {limitReached ? (
-          <a
-            href={(process.env.NEXT_PUBLIC_CHECKOUT_URL || '#') + (process.env.NEXT_PUBLIC_CHECKOUT_URL ? '&source=form' : '')}
-            target="_blank"
-            rel="noreferrer"
+          <button
+            onClick={(e) => { e.preventDefault(); handleUpgradeClick('form') }}
             className={`btn btn-primary ${isLg ? 'px-5 py-3 text-base' : 'px-4 py-2 text-sm'}`}
-            onClick={() => { try { window.dispatchEvent(new CustomEvent('upgrade_click', { detail: { source: 'form' } })) } catch {} }}
           >
             Upgrade to continue
-          </a>
+          </button>
         ) : (
           <button disabled={loading} className={`btn btn-primary ${isLg ? 'px-5 py-3 text-base' : 'px-4 py-2 text-sm'}`}
             data-cta>
