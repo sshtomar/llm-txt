@@ -2,19 +2,42 @@
 import type { JobStatusResponse } from '@/types/api'
 import { prettyBytes } from '@/utils/format'
 import PreviewTabs from './PreviewTabs'
-import { handleUpgradeClick } from '@/lib/checkout'
+import { buildCheckoutUrl } from '@/lib/checkout'
+import { useEmailModal } from '@/hooks/useEmailModal'
+import EmailModal from './EmailModal'
 
 import { useEffect, useState } from 'react'
 
 export default function ResultsPanel({ job }: { job: JobStatusResponse }) {
   const sizeLabel = job.total_size_kb ? prettyBytes(job.total_size_kb) : '—'
   const [isPro, setIsPro] = useState(false)
+  const { isOpen, getEmail, handleSubmit: handleEmailSubmit, handleClose } = useEmailModal()
+
   useEffect(() => {
     fetch('/api/entitlement', { cache: 'no-store' })
       .then(r => r.json())
       .then(j => setIsPro(j?.plan === 'pro'))
       .catch(() => setIsPro(false))
   }, [])
+
+  const handleUpgradeClick = async () => {
+    const email = await getEmail()
+    if (!email) return
+
+    const checkoutUrl = buildCheckoutUrl(email, 'results')
+    if (checkoutUrl === '#') {
+      alert('Checkout not configured. Please contact support.')
+      return
+    }
+
+    try {
+      window.dispatchEvent(new CustomEvent('upgrade_click', {
+        detail: { source: 'results', email }
+      }))
+    } catch {}
+
+    window.open(checkoutUrl, '_blank', 'noopener,noreferrer')
+  }
   return (
     <section className="space-y-3">
       <div className="grid grid-cols-2 gap-3">
@@ -55,13 +78,14 @@ export default function ResultsPanel({ job }: { job: JobStatusResponse }) {
         <div className="mt-2">
           <button
             className="px-3 py-1 inline-block border border-terminal-border hover:border-terminal-teal"
-            onClick={(e) => { e.preventDefault(); handleUpgradeClick('results') }}
+            onClick={handleUpgradeClick}
           >
             Upgrade — unlimited generations
           </button>
         </div>
       </div>
       )}
+      <EmailModal isOpen={isOpen} onClose={handleClose} onSubmit={handleEmailSubmit} />
     </section>
   )
 }

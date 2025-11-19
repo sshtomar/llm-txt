@@ -2,7 +2,9 @@
 import { useEffect, useRef, useState } from 'react'
 import { createGeneration } from '@/api/client'
 import type { GenerationRequest, GenerationResponse } from '@/types/api'
-import { handleUpgradeClick } from '@/lib/checkout'
+import { buildCheckoutUrl } from '@/lib/checkout'
+import { useEmailModal } from '@/hooks/useEmailModal'
+import EmailModal from './EmailModal'
 
 type Props = {
   onCreated: (res: GenerationResponse) => void
@@ -20,6 +22,8 @@ export default function UrlForm({ onCreated, size = 'md' }: Props) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [genCount, setGenCount] = useState<number>(0)
+  const { isOpen, getEmail, handleSubmit: handleEmailSubmit, handleClose } = useEmailModal()
+
   // Toggle to re-enable free trial limits (disabled for Pro)
   const ENABLE_LIMIT = !isPro
   const FREE_LIMIT = 3
@@ -32,6 +36,25 @@ export default function UrlForm({ onCreated, size = 'md' }: Props) {
 
   const inputRef = useRef<HTMLInputElement>(null)
   const [focused, setFocused] = useState(false)
+
+  const handleUpgradeClick = async (source: string) => {
+    const email = await getEmail()
+    if (!email) return
+
+    const checkoutUrl = buildCheckoutUrl(email, source)
+    if (checkoutUrl === '#') {
+      alert('Checkout not configured. Please contact support.')
+      return
+    }
+
+    try {
+      window.dispatchEvent(new CustomEvent('upgrade_click', {
+        detail: { source, email }
+      }))
+    } catch {}
+
+    window.open(checkoutUrl, '_blank', 'noopener,noreferrer')
+  }
 
   useEffect(() => { inputRef.current?.focus() }, [])
 
@@ -111,6 +134,7 @@ export default function UrlForm({ onCreated, size = 'md' }: Props) {
   const trialsLeft = Math.max(0, FREE_LIMIT - genCount)
 
   return (
+    <>
     <form onSubmit={onSubmit} className="space-y-3">
       <label className={`block ${isLg ? 'text-base' : 'text-sm'} opacity-80`}>Documentation URL</label>
       <input
@@ -193,5 +217,7 @@ export default function UrlForm({ onCreated, size = 'md' }: Props) {
         </div>
       )}
     </form>
+    <EmailModal isOpen={isOpen} onClose={handleClose} onSubmit={handleEmailSubmit} />
+    </>
   )
 }
