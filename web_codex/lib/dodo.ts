@@ -47,11 +47,11 @@ export function verifyDodoWebhook(
 
 /**
  * Generate a one-time token for upgrade success redirect
- * Format: base64url(email:expiry:hmac)
+ * Format: base64url(email:payment_id:expiry:hmac)
  */
-export function generateUpgradeToken(email: string, secret: string): string {
+export function generateUpgradeToken(email: string, paymentId: string, secret: string): string {
   const expiry = Date.now() + 10 * 60 * 1000 // 10 minutes
-  const data = `${email}:${expiry}`
+  const data = `${email}:${paymentId}:${expiry}`
   const hmac = crypto
     .createHmac('sha256', secret)
     .update(data)
@@ -61,18 +61,23 @@ export function generateUpgradeToken(email: string, secret: string): string {
   return token
 }
 
+export interface UpgradeTokenData {
+  email: string
+  paymentId: string
+}
+
 /**
  * Verify and decode an upgrade token
- * Returns email if valid, null if expired/invalid
+ * Returns token data if valid, null if expired/invalid
  */
-export function verifyUpgradeToken(token: string, secret: string): string | null {
+export function verifyUpgradeToken(token: string, secret: string): UpgradeTokenData | null {
   try {
     const decoded = Buffer.from(token, 'base64url').toString('utf-8')
     const parts = decoded.split(':')
 
-    if (parts.length !== 3) return null
+    if (parts.length !== 4) return null
 
-    const [email, expiryStr, receivedHmac] = parts
+    const [email, paymentId, expiryStr, receivedHmac] = parts
     const expiry = parseInt(expiryStr, 10)
 
     // Check expiry
@@ -82,7 +87,7 @@ export function verifyUpgradeToken(token: string, secret: string): string | null
     }
 
     // Verify HMAC
-    const data = `${email}:${expiryStr}`
+    const data = `${email}:${paymentId}:${expiryStr}`
     const expectedHmac = crypto
       .createHmac('sha256', secret)
       .update(data)
@@ -96,7 +101,7 @@ export function verifyUpgradeToken(token: string, secret: string): string | null
       return null
     }
 
-    return email
+    return { email, paymentId }
   } catch (error) {
     console.error('Token verification failed:', error)
     return null

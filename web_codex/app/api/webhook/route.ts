@@ -125,7 +125,7 @@ async function handlePaymentSucceeded(event: DodoWebhookEvent, email: string) {
   // Generate one-time token for redirect
   const entitlementSecret = process.env.ENTITLEMENT_SECRET
   if (entitlementSecret) {
-    const token = generateUpgradeToken(email, entitlementSecret)
+    const token = generateUpgradeToken(email, payment_id, entitlementSecret)
     const redirectUrl = `${process.env.NEXT_PUBLIC_SITE_URL || ''}/upgrade/success?token=${token}`
     console.log('Upgrade redirect URL generated for:', email)
     // Note: Dodo may support returning redirect_url in webhook response

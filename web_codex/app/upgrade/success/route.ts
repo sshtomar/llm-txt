@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { verifyUpgradeToken } from '@/lib/dodo'
-import { hasProAccess } from '@/lib/db'
+import { getEntitlement } from '@/lib/db'
+import { createSession, getDeviceInfo } from '@/lib/sessions'
 
 export async function GET(req: Request) {
   const url = new URL(req.url)
@@ -13,7 +14,7 @@ export async function GET(req: Request) {
     console.log('[DEV MODE] Setting Pro cookie without verification')
     const res = NextResponse.redirect(new URL('/?payment=success', req.url))
     const maxAge = 60 * 60 * 24 * 30 // 30 days
-    res.cookies.set('llmxt_pro', 'dev', {
+    res.cookies.set('llmxt_session', 'dev', {
       httpOnly: true,
       sameSite: 'lax',
       secure: process.env.NODE_ENV === 'production',
@@ -23,7 +24,7 @@ export async function GET(req: Request) {
     return res
   }
 
-  // Production mode: verify token and check database
+  // Production mode: verify token and create session
   if (!secret) {
     console.error('ENTITLEMENT_SECRET not configured')
     return NextResponse.redirect(new URL('/?payment=cancel', req.url))
@@ -35,27 +36,31 @@ export async function GET(req: Request) {
   }
 
   // Verify one-time token
-  const email = verifyUpgradeToken(token, secret)
-  if (!email) {
+  const tokenData = verifyUpgradeToken(token, secret)
+  if (!tokenData) {
     console.error('Invalid or expired token')
     return NextResponse.redirect(new URL('/?payment=cancel', req.url))
   }
 
+  const { email, paymentId } = tokenData
+
   // Verify user has active Pro access in database
   try {
-    const hasPro = await hasProAccess(email)
-    if (!hasPro) {
+    const entitlement = await getEntitlement(email)
+    if (!entitlement || entitlement.status !== 'active' || entitlement.plan === 'free') {
       console.error('No active Pro entitlement for:', email)
       return NextResponse.redirect(new URL('/?payment=cancel', req.url))
     }
 
-    // Set authenticated cookie with email
+    // Create session for this device
+    const deviceInfo = getDeviceInfo(req)
+    const sessionId = await createSession(email, entitlement.plan, paymentId, deviceInfo)
+
+    // Set session cookie
     const res = NextResponse.redirect(new URL('/?payment=success', req.url))
     const maxAge = 60 * 60 * 24 * 30 // 30 days
 
-    // Encode email in cookie for entitlement checks
-    const cookieValue = Buffer.from(email).toString('base64url')
-    res.cookies.set('llmxt_pro', cookieValue, {
+    res.cookies.set('llmxt_session', sessionId, {
       httpOnly: true,
       sameSite: 'lax',
       secure: process.env.NODE_ENV === 'production',
@@ -63,11 +68,11 @@ export async function GET(req: Request) {
       path: '/',
     })
 
-    console.log('Pro cookie set for:', email)
+    console.log('Session created for:', email, 'device:', deviceInfo?.device_name || 'unknown')
     return res
 
   } catch (error) {
-    console.error('Database error during entitlement check:', error)
+    console.error('Database error during session creation:', error)
     return NextResponse.redirect(new URL('/?payment=cancel', req.url))
   }
 }
